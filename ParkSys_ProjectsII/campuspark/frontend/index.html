@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CampusPark</title>
+  <link rel="stylesheet" href="./css/main.css" />
+</head>
+<body>
+<header>
+  <div><b>CampusPark</b></div>
+  <div id="topUser" class="small"></div>
+</header>
+
+<main>
+  <div class="card" id="authCard">
+    <h3>Login</h3>
+    <div class="row">
+      <input id="loginUser" placeholder="Username or Email" />
+      <input id="loginPass" placeholder="Password" type="password" />
+      <button id="loginBtn">Login</button>
+    </div>
+
+    <hr />
+
+    <h3>Register</h3>
+    <div class="row">
+      <input id="regUser" placeholder="Username" />
+      <input id="regEmail" placeholder="Email" />
+      <input id="regPass" placeholder="Password (min 6)" type="password" />
+      <button id="regBtn">Register</button>
+    </div>
+    <p class="small" id="authMsg"></p>
+  </div>
+
+  <div class="card hidden" id="appCard">
+    <div class="row" style="align-items:center;justify-content:space-between;">
+      <div>
+        <h3>Select a Parking Lot</h3>
+        <div class="small">Pick a lot to view the map + spot status.</div>
+      </div>
+      <div class="row">
+        <button id="profileBtn" class="secondary">Profile</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <select id="lotSelect"></select>
+      <button id="openLotBtn">Open</button>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { login, register, me, logout } from "./js/auth.js";
+  import { apiGet } from "./js/api.js";
+
+  const authCard = document.getElementById("authCard");
+  const appCard = document.getElementById("appCard");
+  const authMsg = document.getElementById("authMsg");
+  const topUser = document.getElementById("topUser");
+
+  async function loadLots() {
+    const data = await apiGet("/lots/list.php");
+    const sel = document.getElementById("lotSelect");
+    sel.innerHTML = "";
+    data.lots.forEach(l => {
+      const opt = document.createElement("option");
+      opt.value = l.id;
+      opt.textContent = `${l.name} (${l.code})`;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function boot() {
+    try {
+      const u = await me();
+      topUser.textContent = `Logged in as ${u.user.username} (${u.user.tokens} tokens)`;
+      authCard.classList.add("hidden");
+      appCard.classList.remove("hidden");
+      await loadLots();
+    } catch {
+      topUser.textContent = "";
+      authCard.classList.remove("hidden");
+      appCard.classList.add("hidden");
+    }
+  }
+
+  document.getElementById("loginBtn").onclick = async () => {
+    authMsg.textContent = "";
+    try {
+      await login(
+        document.getElementById("loginUser").value,
+        document.getElementById("loginPass").value
+      );
+      await boot();
+    } catch (e) {
+      authMsg.textContent = e.message;
+    }
+  };
+
+  document.getElementById("regBtn").onclick = async () => {
+    authMsg.textContent = "";
+    try {
+      await register(
+        document.getElementById("regUser").value,
+        document.getElementById("regEmail").value,
+        document.getElementById("regPass").value
+      );
+      await boot();
+    } catch (e) {
+      authMsg.textContent = e.message;
+    }
+  };
+
+  document.getElementById("logoutBtn").onclick = async () => {
+    await logout();
+    await boot();
+  };
+
+  document.getElementById("openLotBtn").onclick = () => {
+    const lotId = document.getElementById("lotSelect").value;
+    location.href = `lot.html?lot_id=${encodeURIComponent(lotId)}`;
+  };
+
+  document.getElementById("profileBtn").onclick = () => {
+    location.href = "profile.html";
+  };
+
+  boot();
+</script>
+</body>
+</html>
