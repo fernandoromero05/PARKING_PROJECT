@@ -1,4 +1,4 @@
-export const API_BASE = "http://127.0.0.1/campuspark/backend/api";
+export const API_BASE = "/campuspark/backend/api";
 
 export async function apiGet(path) {
   const res = await fetch(`${API_BASE}${path}`, { credentials: "include" });
