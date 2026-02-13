@@ -1,0 +1,20 @@
+#mapWrap { position: relative; width: 900px; max-width: 100%; }
+#mapImg { width: 100%; border-radius: 10px; display: block; }
+#spotsLayer { position: absolute; inset: 0; }
+
+.spot {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+  color: #111;
+  border: 2px solid rgba(0,0,0,.15);
+  user-select: none;
+}
+.spot.free { background: rgba(0, 220, 120, .85); }
+.spot.occ  { background: rgba(240, 50, 50, .85); color: white; }
+
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }

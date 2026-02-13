@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CampusPark - Lot</title>
+  <link rel="stylesheet" href="./css/main.css" />
+  <link rel="stylesheet" href="./css/map.css" />
+</head>
+<body>
+<header>
+  <div><a href="index.html" style="color:white;text-decoration:none;"><b>CampusPark</b></a></div>
+  <div id="topUser" class="small"></div>
+</header>
+
+<main>
+  <div class="card">
+    <div class="toolbar">
+      <div>
+        <div><b id="lotTitle">Lot</b></div>
+        <div class="small">Click a spot to select it. Green=AVAILABLE, Red=OCCUPIED.</div>
+      </div>
+
+      <div style="flex:1"></div>
+
+      <input id="codeInput" placeholder="Enter code e.g. LOT_A-12" />
+      <button id="claimBtn">Submit Claim</button>
+      <button id="releaseBtn" class="secondary">Release Selected</button>
+      <button id="reportBtn" class="secondary">Report Selected</button>
+    </div>
+    <p class="small" id="msg"></p>
+  </div>
+
+  <div class="card">
+    <div id="mapWrap">
+      <img id="mapImg" src="./assets/maps/lot_a.png" alt="Map" />
+      <div id="spotsLayer"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>Selected spot:</b> <span id="selectedInfo">None</span>
+  </div>
+</main>
+
+<script type="module">
+  import { me } from "./js/auth.js";
+  import { apiGet, apiPost } from "./js/api.js";
+  import { renderSpots } from "./js/map-render.js";
+  import { normalizeCode } from "./js/qr.js";
+
+  const url = new URL(location.href);
+  const lotId = Number(url.searchParams.get("lot_id") || "0");
+
+  const lotTitle = document.getElementById("lotTitle");
+  const mapImg = document.getElementById("mapImg");
+  const spotsLayer = document.getElementById("spotsLayer");
+  const msg = document.getElementById("msg");
+  const topUser = document.getElementById("topUser");
+  const selectedInfo = document.getElementById("selectedInfo");
+
+  let selectedSpot = null;
+
+  function setMsg(t) { msg.textContent = t; }
+
+  async function load() {
+    const u = await me();
+    topUser.textContent = `Logged in as ${u.user.username} (${u.user.tokens} tokens)`;
+
+    const lot = await apiGet(`/lots/get_lot.php?lot_id=${lotId}`);
+    lotTitle.textContent = `${lot.lot.name} (${lot.lot.code})`;
+    mapImg.src = `./assets/maps/${lot.lot.map_image}`;
+
+    await refreshSpots();
+  }
+
+  async function refreshSpots() {
+    const data = await apiGet(`/lots/get_spots.php?lot_id=${lotId}`);
+    renderSpots(spotsLayer, data.spots, (spot) => {
+      selectedSpot = spot;
+      selectedInfo.textContent = `#${spot.spot_number} (${spot.status})` + (spot.occupied_by ? ` by ${spot.occupied_by}` : "");
+    });
+  }
+
+  document.getElementById("claimBtn").onclick = async () => {
+    setMsg("");
+    try {
+      const code = normalizeCode(document.getElementById("codeInput").value);
+      if (!code) throw new Error("Enter a code like LOT_A-12");
+      await apiPost("/spots/claim_occupied.php", { code });
+      setMsg("Claimed successfully.");
+      await load(); // refresh tokens + map
+    } catch (e) {
+      setMsg(e.message);
+    }
+  };
+
+  document.getElementById("releaseBtn").onclick = async () => {
+    setMsg("");
+    try {
+      if (!selectedSpot) throw new Error("Select a spot first");
+      await apiPost("/spots/release.php", { spot_id: selectedSpot.id });
+      setMsg("Released.");
+      await load();
+    } catch (e) {
+      setMsg(e.message);
+    }
+  };
+
+  document.getElementById("reportBtn").onclick = () => {
+    if (!selectedSpot) {
+      setMsg("Select a spot first");
+      return;
+    }
+    location.href = `report.html?spot_id=${encodeURIComponent(selectedSpot.id)}&lot_id=${encodeURIComponent(lotId)}`;
+  };
+
+  load().catch(() => location.href = "index.html");
+</script>
+</body>
+</html>
