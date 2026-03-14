@@ -1,0 +1,209 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CampusPark - Lot</title>
+  <link rel="stylesheet" href="./css/main.css" />
+  <link rel="stylesheet" href="./css/map.css" />
+</head>
+<body>
+<header>
+  <div><a href="index.html" style="color:white;text-decoration:none;"><b>CampusPark</b></a></div>
+  <div id="topUser" class="small"></div>
+</header>
+
+<main>
+  <div class="card">
+    <div class="toolbar">
+      <div>
+        <div><b id="lotTitle">Lot</b></div>
+        <div class="small">Click a spot to select it. Green=AVAILABLE, Red=OCCUPIED, Blue=EV_ONLY.</div>
+      </div>
+
+      <div style="flex:1"></div>
+
+      <input id="codeInput" placeholder="Enter code e.g. LOT_A-12" />
+      <button id="claimBtn">Submit Claim</button>
+      <button id="reserveBtn" class="secondary">Reserve 5 min</button>
+      <button id="releaseBtn" class="secondary">Release Selected</button>
+      <button id="reportBtn" class="secondary">Report Selected</button>
+    </div>
+    <p class="small" id="msg"></p>
+  </div>
+
+  <div class="card">
+    <div id="mapWrap">
+      <img id="mapImg" src="./assets/maps/lot_a.png" alt="Map" />
+      <div id="spotsLayer"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>Selected spot:</b> <span id="selectedInfo">None</span>
+  </div>
+</main>
+
+<script type="module">
+  import { me } from "./js/auth.js";
+  import { apiGet, apiPost } from "./js/api.js";
+  import { renderSpots } from "./js/map-render.js?v=3";
+  import { normalizeCode } from "./js/qr.js";
+
+  const url = new URL(location.href);
+  const lotId = Number(url.searchParams.get("lot_id") || "0");
+
+  const lotTitle = document.getElementById("lotTitle");
+  const mapImg = document.getElementById("mapImg");
+  const spotsLayer = document.getElementById("spotsLayer");
+  const msg = document.getElementById("msg");
+  const topUser = document.getElementById("topUser");
+  const selectedInfo = document.getElementById("selectedInfo");
+
+  let selectedSpot = null;
+
+  function setMsg(t) {
+    msg.textContent = t;
+  }
+
+  function formatCountdown(reservedUntil) {
+    if (!reservedUntil) return "";
+
+    const end = new Date(reservedUntil.replace(" ", "T"));
+    const now = new Date();
+    const diff = Math.floor((end - now) / 1000);
+
+    if (diff <= 0) return "Expired";
+
+    const mins = Math.floor(diff / 60);
+    const secs = diff % 60;
+    return `${mins}:${String(secs).padStart(2, "0")}`;
+  }
+
+  function updateSelectedInfo(spot) {
+    if (!spot) {
+      selectedInfo.textContent = "None";
+      return;
+    }
+
+    const typeText = spot.spot_type === "EV_ONLY" ? "EV_ONLY" : "STANDARD";
+
+    let extra = "";
+    if (spot.occupied_by) extra += ` by ${spot.occupied_by}`;
+    if (spot.vehicle_plate) extra += ` | plate: ${spot.vehicle_plate}`;
+    if (spot.vehicle_make) extra += ` | make: ${spot.vehicle_make}`;
+    if (spot.vehicle_type) extra += ` | type: ${spot.vehicle_type}`;
+    if (spot.reserved_by) extra += ` | reserved by ${spot.reserved_by}`;
+    if (spot.reserved_until) extra += ` | time left: ${formatCountdown(spot.reserved_until)}`;
+
+    selectedInfo.textContent = `#${spot.spot_number} (${spot.status}, ${typeText})${extra}`;
+  }
+
+  async function load() {
+    const u = await me();
+    topUser.textContent = `Logged in as ${u.user.username} (${u.user.tokens} tokens)`;
+
+    const lot = await apiGet(`/lots/get_lot.php?lot_id=${lotId}`);
+    lotTitle.textContent = `${lot.lot.name} (${lot.lot.code})`;
+    mapImg.src = `./assets/maps/${lot.lot.map_image}`;
+
+    await refreshSpots();
+  }
+
+  async function refreshSpots() {
+    const data = await apiGet(`/lots/get_spots.php?lot_id=${lotId}`);
+
+    renderSpots(spotsLayer, data.spots, (spot) => {
+      selectedSpot = spot;
+      updateSelectedInfo(spot);
+    });
+
+    if (selectedSpot) {
+      const freshSelected = data.spots.find(s => s.id === selectedSpot.id);
+      if (freshSelected) {
+        selectedSpot = freshSelected;
+        updateSelectedInfo(selectedSpot);
+      } else {
+        selectedSpot = null;
+        updateSelectedInfo(null);
+      }
+    }
+  }
+
+  document.getElementById("claimBtn").onclick = async () => {
+    setMsg("");
+    try {
+      const code = normalizeCode(document.getElementById("codeInput").value);
+      const currentUser = await me();
+
+      const plate = (currentUser.user.vehicle_plate || "").trim();
+      const make = (currentUser.user.vehicle_make || "").trim();
+      const vehicleType = (currentUser.user.vehicle_type || "").trim();
+
+      if (!code) throw new Error("Enter a code like LOT_A-12");
+      if (!plate) throw new Error("Este usuario no tiene matrícula guardada.");
+      if (!make) throw new Error("Este usuario no tiene marca guardada.");
+      if (!vehicleType) throw new Error("Este usuario no tiene tipo de vehículo guardado.");
+
+      await apiPost("/spots/claim_occupied.php", {
+        code,
+        plate,
+        make,
+        vehicle_type: vehicleType
+      });
+
+      setMsg("Claimed successfully.");
+      await load();
+    } catch (e) {
+      setMsg(e.message);
+    }
+  };
+
+  document.getElementById("reserveBtn").onclick = async () => {
+    setMsg("");
+    try {
+      if (!selectedSpot) throw new Error("Select a spot first");
+      await apiPost("/spots/reserve.php", { spot_id: selectedSpot.id, minutes: 5 });
+      setMsg("Spot reserved for 5 minutes.");
+      await load();
+    } catch (e) {
+      setMsg(e.message);
+    }
+  };
+
+  document.getElementById("releaseBtn").onclick = async () => {
+    setMsg("");
+    try {
+      if (!selectedSpot) throw new Error("Select a spot first");
+      await apiPost("/spots/release.php", { spot_id: selectedSpot.id });
+      setMsg("Released.");
+      await load();
+    } catch (e) {
+      setMsg(e.message);
+    }
+  };
+
+  document.getElementById("reportBtn").onclick = () => {
+    if (!selectedSpot) {
+      setMsg("Select a spot first");
+      return;
+    }
+    location.href = `report.html?spot_id=${encodeURIComponent(selectedSpot.id)}&lot_id=${encodeURIComponent(lotId)}`;
+  };
+
+  setInterval(async () => {
+    try {
+      await apiGet("/spots/cleanup_expired.php");
+      await refreshSpots();
+    } catch {}
+  }, 30000);
+
+  setInterval(() => {
+    if (selectedSpot && selectedSpot.reserved_until) {
+      updateSelectedInfo(selectedSpot);
+    }
+  }, 1000);
+
+  load().catch(() => location.href = "index.html");
+</script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CampusPark</title>
+  <link rel="stylesheet" href="./css/main.css" />
+</head>
+<body>
+<header>
+  <div><b>CampusPark</b></div>
+  <div id="topUser" class="small"></div>
+</header>
+
+<main>
+  <div class="card" id="authCard">
+    <h3>Login</h3>
+    <div class="row">
+      <input id="loginUser" placeholder="Username or Email" />
+      <input id="loginPass" placeholder="Password" type="password" />
+      <button id="loginBtn">Login</button>
+    </div>
+
+    <hr />
+
+    <h3>Create account</h3>
+    <div class="row">
+      <input id="regUser" placeholder="Username" />
+      <input id="regEmail" placeholder="Email" />
+      <input id="regPass" placeholder="Password (min 6)" type="password" />
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <input id="regPlate" placeholder="Matricula" />
+      <input id="regMake" placeholder="Marca" />
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <label><input type="radio" name="regVehicleType" value="ELECTRIC" checked /> Eléctrico</label>
+      <label><input type="radio" name="regVehicleType" value="HYBRID" /> Híbrido</label>
+      <label><input type="radio" name="regVehicleType" value="DIESEL_GAS" /> Diesel/Gasolina</label>
+      <button id="regBtn">Register</button>
+    </div>
+
+    <p class="small" id="authMsg"></p>
+  </div>
+
+  <div class="card hidden" id="appCard">
+    <div class="row" style="align-items:center;justify-content:space-between;">
+      <div>
+        <h3>Select a Parking Lot</h3>
+        <div class="small">Pick a lot to view the map + spot status.</div>
+        <div class="small" id="vehicleSummary"></div>
+      </div>
+      <div class="row">
+        <button id="profileBtn" class="secondary">Profile</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <select id="lotSelect"></select>
+      <button id="openLotBtn">Open</button>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { login, register, me, logout } from "./js/auth.js";
+  import { apiGet } from "./js/api.js";
+
+  const authCard = document.getElementById("authCard");
+  const appCard = document.getElementById("appCard");
+  const authMsg = document.getElementById("authMsg");
+  const topUser = document.getElementById("topUser");
+  const vehicleSummary = document.getElementById("vehicleSummary");
+
+  function renderVehicleSummary(user) {
+    if (!user.vehicle_plate || !user.vehicle_make || !user.vehicle_type) {
+      vehicleSummary.textContent = "No vehicle assigned.";
+      return;
+    }
+    vehicleSummary.textContent = `Vehicle: ${user.vehicle_plate} | ${user.vehicle_make} | ${user.vehicle_type}`;
+  }
+
+  async function loadLots() {
+    const data = await apiGet("/lots/list.php");
+    const sel = document.getElementById("lotSelect");
+    sel.innerHTML = "";
+    data.lots.forEach(l => {
+      const opt = document.createElement("option");
+      opt.value = l.id;
+      opt.textContent = `${l.name} (${l.code})`;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function boot() {
+    try {
+      const u = await me();
+      topUser.textContent = `Logged in as ${u.user.username} (${u.user.tokens} tokens)`;
+      authCard.classList.add("hidden");
+      appCard.classList.remove("hidden");
+      await loadLots();
+      renderVehicleSummary(u.user);
+    } catch {
+      topUser.textContent = "";
+      authCard.classList.remove("hidden");
+      appCard.classList.add("hidden");
+    }
+  }
+
+  document.getElementById("loginBtn").onclick = async () => {
+    authMsg.textContent = "";
+    try {
+      await login(
+        document.getElementById("loginUser").value,
+        document.getElementById("loginPass").value
+      );
+      await boot();
+    } catch (e) {
+      authMsg.textContent = e.message;
+    }
+  };
+
+  document.getElementById("regBtn").onclick = async () => {
+    authMsg.textContent = "";
+    try {
+      const vehicleType = document.querySelector('input[name="regVehicleType"]:checked')?.value;
+
+      await fetch("/campuspark/backend/api/auth/register.php", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: document.getElementById("regUser").value,
+          email: document.getElementById("regEmail").value,
+          password: document.getElementById("regPass").value,
+          vehicle_plate: document.getElementById("regPlate").value,
+          vehicle_make: document.getElementById("regMake").value,
+          vehicle_type: vehicleType
+        })
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Register failed");
+      });
+
+      await boot();
+    } catch (e) {
+      authMsg.textContent = e.message;
+    }
+  };
+
+  document.getElementById("logoutBtn").onclick = async () => {
+    await logout();
+    await boot();
+  };
+
+  document.getElementById("openLotBtn").onclick = async () => {
+    authMsg.textContent = "";
+    try {
+      const u = await me();
+      if (!u.user.vehicle_plate || !u.user.vehicle_make || !u.user.vehicle_type) {
+        authMsg.textContent = "Este usuario no tiene coche asignado.";
+        return;
+      }
+
+      const lotId = document.getElementById("lotSelect").value;
+      location.href = `lot.html?lot_id=${encodeURIComponent(lotId)}`;
+    } catch (e) {
+      authMsg.textContent = e.message;
+    }
+  };
+
+  document.getElementById("profileBtn").onclick = () => {
+    location.href = "profile.html";
+  };
+
+  boot();
+</script>
+</body>
+</html>
