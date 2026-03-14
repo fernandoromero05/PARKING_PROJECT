@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(120) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   tokens INT NOT NULL DEFAULT 100,
+  vehicle_plate VARCHAR(20) NULL,
+  vehicle_make VARCHAR(60) NULL,
+  vehicle_type ENUM('ELECTRIC','HYBRID','DIESEL_GAS') NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -25,12 +28,19 @@ CREATE TABLE IF NOT EXISTS spots (
   id INT AUTO_INCREMENT PRIMARY KEY,
   lot_id INT NOT NULL,
   spot_number INT NOT NULL,
-  status ENUM('AVAILABLE','OCCUPIED') NOT NULL DEFAULT 'AVAILABLE',
+  spot_type ENUM('STANDARD','EV_ONLY') NOT NULL DEFAULT 'STANDARD',
+  status ENUM('AVAILABLE','RESERVED','OCCUPIED') NOT NULL DEFAULT 'AVAILABLE',
   occupied_by_user_id INT NULL,
+  reserved_by_user_id INT NULL,
   occupied_since DATETIME NULL,
+  reserved_until DATETIME NULL,
+  vehicle_plate VARCHAR(20) NULL,
+  vehicle_make VARCHAR(60) NULL,
+  vehicle_type ENUM('ELECTRIC','HYBRID','DIESEL_GAS') NULL,
   UNIQUE KEY uniq_lot_spot (lot_id, spot_number),
   FOREIGN KEY (lot_id) REFERENCES lots(id) ON DELETE CASCADE,
-  FOREIGN KEY (occupied_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+  FOREIGN KEY (occupied_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (reserved_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- CLAIMS (history of claims/releases)
@@ -50,7 +60,17 @@ CREATE TABLE IF NOT EXISTS reports (
   reporter_user_id INT NOT NULL,
   spot_id INT NOT NULL,
   reported_user_id INT NULL,
-  type ENUM('POORLY_PARKED','DID_NOT_CLAIM','OTHER') NOT NULL,
+  type ENUM(
+    'POORLY_PARKED',
+    'DID_NOT_CLAIM',
+    'DISRESPECTFUL_DRIVER',
+    'EXCEEDS_TIME_LIMIT',
+    'BLOCKING_SPOT',
+    'PARKED_OVER_LINE',
+    'UNAUTHORIZED_PARKING',
+    'ABANDONED_VEHICLE',
+    'OTHER'
+  ) NOT NULL,
   note VARCHAR(255) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (reporter_user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -68,16 +88,22 @@ CREATE TABLE IF NOT EXISTS token_ledger (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Helpful indexes
+CREATE INDEX idx_users_vehicle_plate ON users(vehicle_plate);
+CREATE INDEX idx_spots_vehicle_plate ON spots(vehicle_plate);
+
 -- SEED LOTS
 INSERT INTO lots (code, name, map_image) VALUES
 ('LOT_A', 'Parking Lot at Building A', 'lot_a.png'),
 ('LOT_B', 'Parking Lot at Building B', 'lot_b.png'),
 ('LOT_C', 'Parking Lot at Building C', 'lot_c.png')
-ON DUPLICATE KEY UPDATE name=VALUES(name), map_image=VALUES(map_image);
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  map_image = VALUES(map_image);
 
--- SEED 24 SPOTS FOR LOT_A, 16 FOR LOT_B, 12 FOR LOT_C
-INSERT IGNORE INTO spots (lot_id, spot_number)
-SELECT l.id, n.num
+-- SEED 24 STANDARD SPOTS FOR LOT_A
+INSERT IGNORE INTO spots (lot_id, spot_number, spot_type, status)
+SELECT l.id, n.num, 'STANDARD', 'AVAILABLE'
 FROM lots l
 JOIN (
   SELECT 1 num UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
@@ -87,8 +113,19 @@ JOIN (
 ) n
 WHERE l.code='LOT_A';
 
-INSERT IGNORE INTO spots (lot_id, spot_number)
-SELECT l.id, n.num
+-- SEED EV-ONLY SPOTS 25-32 FOR LOT_A
+INSERT IGNORE INTO spots (lot_id, spot_number, spot_type, status)
+SELECT l.id, n.num, 'EV_ONLY', 'AVAILABLE'
+FROM lots l
+JOIN (
+  SELECT 25 num UNION ALL SELECT 26 UNION ALL SELECT 27 UNION ALL SELECT 28
+  UNION ALL SELECT 29 UNION ALL SELECT 30 UNION ALL SELECT 31 UNION ALL SELECT 32
+) n
+WHERE l.code='LOT_A';
+
+-- SEED 16 STANDARD SPOTS FOR LOT_B
+INSERT IGNORE INTO spots (lot_id, spot_number, spot_type, status)
+SELECT l.id, n.num, 'STANDARD', 'AVAILABLE'
 FROM lots l
 JOIN (
   SELECT 1 num UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
@@ -97,8 +134,9 @@ JOIN (
 ) n
 WHERE l.code='LOT_B';
 
-INSERT IGNORE INTO spots (lot_id, spot_number)
-SELECT l.id, n.num
+-- SEED 12 STANDARD SPOTS FOR LOT_C
+INSERT IGNORE INTO spots (lot_id, spot_number, spot_type, status)
+SELECT l.id, n.num, 'STANDARD', 'AVAILABLE'
 FROM lots l
 JOIN (
   SELECT 1 num UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
