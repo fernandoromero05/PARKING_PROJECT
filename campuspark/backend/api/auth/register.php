@@ -21,12 +21,12 @@ $vehicleType = trim((string)$data['vehicle_type']);
 if (strlen($username) < 3) json_fail('Username too short');
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) json_fail('Invalid email');
 if (strlen($password) < 6) json_fail('Password too short (min 6)');
-if ($vehiclePlate === '') json_fail('Matricula requerida');
-if ($vehicleMake === '') json_fail('Marca requerida');
+if ($vehiclePlate === '') json_fail('License plate required');
+if ($vehicleMake === '') json_fail('Vehicle make/model required');
 
 $allowedVehicleTypes = ['ELECTRIC', 'HYBRID', 'DIESEL_GAS'];
 if (!in_array($vehicleType, $allowedVehicleTypes, true)) {
-  json_fail('Tipo de vehículo inválido');
+  json_fail('Invalid vehicle type');
 }
 
 $hash = password_hash($password, PASSWORD_DEFAULT);

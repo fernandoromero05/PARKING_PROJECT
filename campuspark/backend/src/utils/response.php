@@ -15,11 +15,22 @@ function json_fail(string $error, int $code = 400, array $extra = []): void {
 }
 
 function enable_cors(): void {
-  $config = require __DIR__ . '/../../config/config.php';
-  header('Access-Control-Allow-Origin: ' . $config['cors']['allow_origin']);
-  header('Access-Control-Allow-Headers: Content-Type');
-  header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-  if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit;
+  $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+  // In development, we can allow everything by echoing the request's origin
+  // for credentials to work. For production, you should validate against a list.
+  if ($origin) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+  } else {
+    header('Access-Control-Allow-Origin: *');
+  }
+  
+  header('Access-Control-Allow-Credentials: true');
+  header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+  header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+  
+  if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit;
+  }
 }
 
 function start_session(): void {

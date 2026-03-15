@@ -1,11 +1,9 @@
 export function computeSpotPositions(totalSpots) {
   const positions = [];
-  const cols = Math.ceil(totalSpots / 8);
-
-  const leftStart = 0.10;
-  const topStart = 0.15;
-  const colGap = 0.16;
-  const rowGap = 0.08;
+  const leftStart = 0.05;
+  const topStart = 0.10;
+  const colGap = 0.10;
+  const rowGap = 0.10;
 
   for (let i = 0; i < totalSpots; i++) {
     const r = i % 8;
@@ -15,7 +13,6 @@ export function computeSpotPositions(totalSpots) {
       top: topStart + r * rowGap,
     });
   }
-
   return positions;
 }
 
@@ -24,24 +21,22 @@ function normalizeValue(value) {
 }
 
 function getSpotClass(spot) {
-  const spotType = normalizeValue(spot.spot_type);
   const status = normalizeValue(spot.status);
+  const type = normalizeValue(spot.spot_type);
 
-  if (spotType === "EV_ONLY") {
-    if (status === "AVAILABLE") return "ev";
-    if (status === "RESERVED") return "ev-reserved";
-    if (status === "OCCUPIED") return "ev-occ";
-    return "ev";
-  }
-
-  if (status === "AVAILABLE") return "free";
-  if (status === "RESERVED") return "reserved";
   if (status === "OCCUPIED") return "occ";
+  if (status === "RESERVED") return "reserved";
+  
+  // Available states
+  if (type === "EV_ONLY") return "ev";
   return "free";
 }
 
 export function renderSpots(layerEl, spots, onSpotClick) {
+  if (!layerEl) return;
   layerEl.innerHTML = "";
+  
+  // Simple layout: let's try to fit them in a grid
   const positions = computeSpotPositions(spots.length);
 
   spots.forEach((spot, idx) => {
@@ -49,13 +44,20 @@ export function renderSpots(layerEl, spots, onSpotClick) {
     const cls = getSpotClass(spot);
 
     div.className = `spot ${cls}`;
-    div.style.left = `${positions[idx].left * 100}%`;
-    div.style.top = `${positions[idx].top * 100}%`;
+    
+    // Position using percentages relative to #mapWrap
+    const pos = positions[idx] || { left: 0, top: 0 };
+    div.style.left = `${pos.left * 100}%`;
+    div.style.top = `${pos.top * 100}%`;
+    
     div.textContent = spot.spot_number;
+    div.dataset.id = spot.id;
 
-    div.title = `Spot ${spot.spot_number}: ${spot.status}${normalizeValue(spot.spot_type) === "EV_ONLY" ? " (EV_ONLY)" : ""}`;
-
-    div.addEventListener("click", () => onSpotClick(spot));
+    div.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onSpotClick(spot);
+    });
+    
     layerEl.appendChild(div);
   });
 }

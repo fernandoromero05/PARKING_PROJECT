@@ -19,12 +19,12 @@ $make = trim((string)$data['make']);
 $vehicleType = trim((string)$data['vehicle_type']);
 
 if ($code === '') json_fail('Empty code');
-if ($plate === '') json_fail('Matricula requerida');
-if ($make === '') json_fail('Marca requerida');
+if ($plate === '') json_fail('License plate required');
+if ($make === '') json_fail('Vehicle make required');
 
 $allowedVehicleTypes = ['ELECTRIC', 'HYBRID', 'DIESEL_GAS'];
 if (!in_array($vehicleType, $allowedVehicleTypes, true)) {
-  json_fail('Tipo de vehículo inválido');
+  json_fail('Invalid vehicle type');
 }
 
 $pyUrl = rtrim($config['python_api_base'], '/') . '/validate_code';
@@ -100,7 +100,7 @@ try {
 
   if ($spot['spot_type'] === 'EV_ONLY' && !in_array($vehicleType, ['ELECTRIC', 'HYBRID'], true)) {
     $pdo->rollBack();
-    json_fail('Esta plaza es solo para coches eléctricos o híbridos', 403);
+    json_fail('This spot is for electric or hybrid cars only', 403);
   }
 
   if ($spot['status'] === 'OCCUPIED') {

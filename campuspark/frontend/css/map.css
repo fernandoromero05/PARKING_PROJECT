@@ -1,6 +1,7 @@
 #mapWrap { position: relative; width: 900px; max-width: 100%; }
 #mapImg { width: 100%; border-radius: 10px; display: block; }
-#spotsLayer { position: absolute; inset: 0; }
+#spotsLayer { position: absolute; inset: 0; z-index: 5; }
+.spot.reserved { background: #e8f0fe; color: #1a73e8; border-color: #1a73e8; }
 
 .spot {
   position: absolute;
@@ -13,6 +14,13 @@
   color: #111;
   border: 2px solid rgba(0,0,0,.15);
   user-select: none;
+  cursor: pointer;
+  z-index: 10;
+  transition: transform 0.1s;
+}
+.spot:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 .spot.free { background: rgba(0, 220, 120, .85); }
 .spot.occ  { background: rgba(240, 50, 50, .85); color: white; }

@@ -1,209 +1,277 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>CampusPark - Lot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CampusPark - Parking Lot View</title>
   <link rel="stylesheet" href="./css/main.css" />
   <link rel="stylesheet" href="./css/map.css" />
 </head>
 <body>
 <header>
   <div><a href="index.html" style="color:white;text-decoration:none;"><b>CampusPark</b></a></div>
-  <div id="topUser" class="small"></div>
+  <div id="topUser" class="small" style="color: white;"></div>
 </header>
 
 <main>
   <div class="card">
-    <div class="toolbar">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
       <div>
-        <div><b id="lotTitle">Lot</b></div>
-        <div class="small">Click a spot to select it. Green=AVAILABLE, Red=OCCUPIED, Blue=EV_ONLY.</div>
+        <h2 id="lotTitle" style="margin:0;">Parking Lot</h2>
+        <p class="small">Click on a spot to view details and take actions.</p>
       </div>
-
-      <div style="flex:1"></div>
-
-      <input id="codeInput" placeholder="Enter code e.g. LOT_A-12" />
-      <button id="claimBtn">Submit Claim</button>
-      <button id="reserveBtn" class="secondary">Reserve 5 min</button>
-      <button id="releaseBtn" class="secondary">Release Selected</button>
-      <button id="reportBtn" class="secondary">Report Selected</button>
+      <div style="text-align: right;">
+        <div class="small" style="margin-bottom: 8px;"><b>Legend:</b></div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+          <span class="status-badge status-available">Available</span>
+          <span class="status-badge status-occupied">Occupied</span>
+          <span class="status-badge status-reserved">Reserved</span>
+          <span class="status-badge status-ev">EV Only</span>
+        </div>
+      </div>
     </div>
-    <p class="small" id="msg"></p>
+    <div id="msg" class="error-msg hidden"></div>
   </div>
 
-  <div class="card">
-    <div id="mapWrap">
-      <img id="mapImg" src="./assets/maps/lot_a.png" alt="Map" />
+  <div class="card" style="padding: 0; overflow: hidden; position: relative;">
+    <div id="mapWrap" style="position: relative; width: 100%; min-height: 400px; background: #eee;">
+      <img id="mapImg" src="" alt="Parking Map" style="width: 100%; display: block;" />
       <div id="spotsLayer"></div>
     </div>
   </div>
 
-  <div class="card">
-    <b>Selected spot:</b> <span id="selectedInfo">None</span>
+  <!-- Spot Action Modal -->
+  <div id="spotModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Spot #--</h3>
+        <span class="modal-close" id="closeModal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="spot-details" id="modalDetails">
+          <!-- Details will be injected here -->
+        </div>
+        <div id="modalMsg" class="error-msg hidden"></div>
+      </div>
+      <div class="modal-footer" id="modalActions">
+        <!-- Actions will be injected here -->
+      </div>
+    </div>
   </div>
 </main>
 
 <script type="module">
   import { me } from "./js/auth.js";
   import { apiGet, apiPost } from "./js/api.js";
-  import { renderSpots } from "./js/map-render.js?v=3";
-  import { normalizeCode } from "./js/qr.js";
+  import { renderSpots } from "./js/map-render.js?v=4";
 
   const url = new URL(location.href);
   const lotId = Number(url.searchParams.get("lot_id") || "0");
+  let lotCode = "";
 
   const lotTitle = document.getElementById("lotTitle");
   const mapImg = document.getElementById("mapImg");
   const spotsLayer = document.getElementById("spotsLayer");
-  const msg = document.getElementById("msg");
   const topUser = document.getElementById("topUser");
-  const selectedInfo = document.getElementById("selectedInfo");
+  
+  const spotModal = document.getElementById("spotModal");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalDetails = document.getElementById("modalDetails");
+  const modalActions = document.getElementById("modalActions");
+  const modalMsg = document.getElementById("modalMsg");
+  const closeModal = document.getElementById("closeModal");
 
   let selectedSpot = null;
+  let currentUser = null;
 
-  function setMsg(t) {
+  function setMainMsg(t, isError = true) {
+    const msg = document.getElementById("msg");
+    if (!t) {
+      msg.classList.add("hidden");
+      return;
+    }
     msg.textContent = t;
+    msg.classList.remove("hidden");
+    if (!isError) {
+      msg.style.background = "#e6f4ea";
+      msg.style.color = "#1e8e3e";
+      msg.style.borderColor = "#ceead6";
+    } else {
+      msg.style.background = "#fce8e6";
+      msg.style.color = "#d93025";
+      msg.style.borderColor = "#fad2cf";
+    }
+  }
+
+  function setModalMsg(t) {
+    if (!t) {
+      modalMsg.classList.add("hidden");
+      return;
+    }
+    modalMsg.textContent = t;
+    modalMsg.classList.remove("hidden");
   }
 
   function formatCountdown(reservedUntil) {
     if (!reservedUntil) return "";
-
     const end = new Date(reservedUntil.replace(" ", "T"));
     const now = new Date();
     const diff = Math.floor((end - now) / 1000);
-
     if (diff <= 0) return "Expired";
-
     const mins = Math.floor(diff / 60);
     const secs = diff % 60;
     return `${mins}:${String(secs).padStart(2, "0")}`;
   }
 
-  function updateSelectedInfo(spot) {
-    if (!spot) {
-      selectedInfo.textContent = "None";
-      return;
-    }
-
-    const typeText = spot.spot_type === "EV_ONLY" ? "EV_ONLY" : "STANDARD";
-
-    let extra = "";
-    if (spot.occupied_by) extra += ` by ${spot.occupied_by}`;
-    if (spot.vehicle_plate) extra += ` | plate: ${spot.vehicle_plate}`;
-    if (spot.vehicle_make) extra += ` | make: ${spot.vehicle_make}`;
-    if (spot.vehicle_type) extra += ` | type: ${spot.vehicle_type}`;
-    if (spot.reserved_by) extra += ` | reserved by ${spot.reserved_by}`;
-    if (spot.reserved_until) extra += ` | time left: ${formatCountdown(spot.reserved_until)}`;
-
-    selectedInfo.textContent = `#${spot.spot_number} (${spot.status}, ${typeText})${extra}`;
-  }
-
   async function load() {
-    const u = await me();
-    topUser.textContent = `Logged in as ${u.user.username} (${u.user.tokens} tokens)`;
+    try {
+      currentUser = await me();
+      topUser.textContent = `Hello, ${currentUser.user.username} (${currentUser.user.tokens} tokens)`;
 
-    const lot = await apiGet(`/lots/get_lot.php?lot_id=${lotId}`);
-    lotTitle.textContent = `${lot.lot.name} (${lot.lot.code})`;
-    mapImg.src = `./assets/maps/${lot.lot.map_image}`;
+      const lot = await apiGet(`/lots/get_lot.php?lot_id=${lotId}`);
+      lotCode = lot.lot.code;
+      lotTitle.textContent = `${lot.lot.name} (${lotCode})`;
+      mapImg.src = `./assets/maps/${lot.lot.map_image}`;
 
-    await refreshSpots();
+      await refreshSpots();
+    } catch (e) {
+      console.error(e);
+      window.location.href = "index.html";
+    }
   }
 
   async function refreshSpots() {
     const data = await apiGet(`/lots/get_spots.php?lot_id=${lotId}`);
-
     renderSpots(spotsLayer, data.spots, (spot) => {
-      selectedSpot = spot;
-      updateSelectedInfo(spot);
+      openSpotModal(spot);
     });
 
     if (selectedSpot) {
-      const freshSelected = data.spots.find(s => s.id === selectedSpot.id);
-      if (freshSelected) {
-        selectedSpot = freshSelected;
-        updateSelectedInfo(selectedSpot);
+      const fresh = data.spots.find(s => s.id === selectedSpot.id);
+      if (fresh) {
+        selectedSpot = fresh;
+        updateModalContent();
       } else {
-        selectedSpot = null;
-        updateSelectedInfo(null);
+        closeSpotModal();
       }
     }
   }
 
-  document.getElementById("claimBtn").onclick = async () => {
-    setMsg("");
+  function openSpotModal(spot) {
+    selectedSpot = spot;
+    updateModalContent();
+    spotModal.classList.add("active");
+  }
+
+  function closeSpotModal() {
+    selectedSpot = null;
+    spotModal.classList.remove("active");
+    setModalMsg("");
+  }
+
+  function updateModalContent() {
+    if (!selectedSpot) return;
+
+    modalTitle.textContent = `Spot #${selectedSpot.spot_number}`;
+    
+    let statusClass = "status-available";
+    if (selectedSpot.status === "OCCUPIED") statusClass = "status-occupied";
+    if (selectedSpot.status === "RESERVED") statusClass = "status-reserved";
+
+    let detailsHtml = `
+      <p><strong>Status:</strong> <span class="status-badge ${statusClass}">${selectedSpot.status}</span></p>
+      <p><strong>Type:</strong> ${selectedSpot.spot_type === 'EV_ONLY' ? '⚡ EV ONLY' : 'Standard'}</p>
+    `;
+
+    if (selectedSpot.status === "OCCUPIED") {
+      detailsHtml += `<p><strong>Occupied by:</strong> ${selectedSpot.occupied_by || 'Unknown'}</p>`;
+      if (selectedSpot.vehicle_plate) detailsHtml += `<p><strong>Plate:</strong> ${selectedSpot.vehicle_plate}</p>`;
+    } else if (selectedSpot.status === "RESERVED") {
+      detailsHtml += `<p><strong>Reserved by:</strong> ${selectedSpot.reserved_by || 'Unknown'}</p>`;
+      detailsHtml += `<p><strong>Time Left:</strong> ${formatCountdown(selectedSpot.reserved_until)}</p>`;
+    }
+
+    modalDetails.innerHTML = detailsHtml;
+
+    // Actions logic
+    modalActions.innerHTML = "";
+    const isOwner = (selectedSpot.occupied_by_user_id == currentUser.user.id || selectedSpot.reserved_by_user_id == currentUser.user.id);
+
+    if (selectedSpot.status === "AVAILABLE" || (selectedSpot.status === "RESERVED" && isOwner)) {
+      const btn = document.createElement("button");
+      btn.textContent = "Claim This Spot";
+      btn.onclick = () => handleAction("claim");
+      modalActions.appendChild(btn);
+    }
+
+    if (selectedSpot.status === "AVAILABLE") {
+      const btn = document.createElement("button");
+      btn.className = "secondary";
+      btn.textContent = "Reserve (5 mins)";
+      btn.onclick = () => handleAction("reserve");
+      modalActions.appendChild(btn);
+    }
+
+    if (isOwner) {
+      const btn = document.createElement("button");
+      btn.className = "secondary";
+      btn.style.background = "#ea4335";
+      btn.style.color = "white";
+      btn.textContent = "Release Spot";
+      btn.onclick = () => handleAction("release");
+      modalActions.appendChild(btn);
+    }
+
+    const reportBtn = document.createElement("button");
+    reportBtn.className = "secondary";
+    reportBtn.textContent = "Report an Issue";
+    reportBtn.onclick = () => {
+      location.href = `report.html?spot_id=${selectedSpot.id}&lot_id=${lotId}`;
+    };
+    modalActions.appendChild(reportBtn);
+  }
+
+  async function handleAction(type) {
+    setModalMsg("");
     try {
-      const code = normalizeCode(document.getElementById("codeInput").value);
-      const currentUser = await me();
-
-      const plate = (currentUser.user.vehicle_plate || "").trim();
-      const make = (currentUser.user.vehicle_make || "").trim();
-      const vehicleType = (currentUser.user.vehicle_type || "").trim();
-
-      if (!code) throw new Error("Enter a code like LOT_A-12");
-      if (!plate) throw new Error("Este usuario no tiene matrícula guardada.");
-      if (!make) throw new Error("Este usuario no tiene marca guardada.");
-      if (!vehicleType) throw new Error("Este usuario no tiene tipo de vehículo guardado.");
-
-      await apiPost("/spots/claim_occupied.php", {
-        code,
-        plate,
-        make,
-        vehicle_type: vehicleType
-      });
-
-      setMsg("Claimed successfully.");
-      await load();
+      const u = currentUser.user;
+      if (type === "claim") {
+        const spotCode = `${lotCode}-${selectedSpot.spot_number}`;
+        await apiPost("/spots/claim_occupied.php", {
+          code: spotCode,
+          plate: u.vehicle_plate,
+          make: u.vehicle_make,
+          vehicle_type: u.vehicle_type
+        });
+        setMainMsg(`Spot #${selectedSpot.spot_number} claimed successfully!`, false);
+      } else if (type === "reserve") {
+        await apiPost("/spots/reserve.php", { spot_id: selectedSpot.id, minutes: 5 });
+        setMainMsg(`Spot #${selectedSpot.spot_number} reserved.`, false);
+      } else if (type === "release") {
+        await apiPost("/spots/release.php", { spot_id: selectedSpot.id });
+        setMainMsg(`Spot #${selectedSpot.spot_number} released.`, false);
+      }
+      closeSpotModal();
+      await refreshSpots();
     } catch (e) {
-      setMsg(e.message);
+      setModalMsg(e.message);
     }
+  }
+
+  closeModal.onclick = closeSpotModal;
+  window.onclick = (event) => {
+    if (event.target == spotModal) closeSpotModal();
   };
 
-  document.getElementById("reserveBtn").onclick = async () => {
-    setMsg("");
-    try {
-      if (!selectedSpot) throw new Error("Select a spot first");
-      await apiPost("/spots/reserve.php", { spot_id: selectedSpot.id, minutes: 5 });
-      setMsg("Spot reserved for 5 minutes.");
-      await load();
-    } catch (e) {
-      setMsg(e.message);
-    }
-  };
-
-  document.getElementById("releaseBtn").onclick = async () => {
-    setMsg("");
-    try {
-      if (!selectedSpot) throw new Error("Select a spot first");
-      await apiPost("/spots/release.php", { spot_id: selectedSpot.id });
-      setMsg("Released.");
-      await load();
-    } catch (e) {
-      setMsg(e.message);
-    }
-  };
-
-  document.getElementById("reportBtn").onclick = () => {
-    if (!selectedSpot) {
-      setMsg("Select a spot first");
-      return;
-    }
-    location.href = `report.html?spot_id=${encodeURIComponent(selectedSpot.id)}&lot_id=${encodeURIComponent(lotId)}`;
-  };
-
+  // Auto-refresh logic
   setInterval(async () => {
     try {
       await apiGet("/spots/cleanup_expired.php");
       await refreshSpots();
     } catch {}
-  }, 30000);
+  }, 10000);
 
-  setInterval(() => {
-    if (selectedSpot && selectedSpot.reserved_until) {
-      updateSelectedInfo(selectedSpot);
-    }
-  }, 1000);
-
-  load().catch(() => location.href = "index.html");
+  load();
 </script>
 </body>
 </html>
