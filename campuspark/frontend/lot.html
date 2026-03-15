@@ -15,22 +15,20 @@
 
 <main>
   <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
       <div>
         <h2 id="lotTitle" style="margin:0;">Parking Lot</h2>
-        <p class="small">Click on a spot to view details and take actions.</p>
+        <p class="small" style="margin: 4px 0 0 0;">Click a spot to manage it.</p>
       </div>
-      <div style="text-align: right;">
-        <div class="small" style="margin-bottom: 8px;"><b>Legend:</b></div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
-          <span class="status-badge status-available">Available</span>
-          <span class="status-badge status-occupied">Occupied</span>
-          <span class="status-badge status-reserved">Reserved</span>
-          <span class="status-badge status-ev">EV Only</span>
-        </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+        <span class="status-badge status-mine">My Spot</span>
+        <span class="status-badge status-available">Available</span>
+        <span class="status-badge status-occupied">Occupied</span>
+        <span class="status-badge status-reserved">Reserved</span>
+        <span class="status-badge status-ev">EV Only</span>
       </div>
     </div>
-    <div id="msg" class="error-msg hidden"></div>
+    <div id="msg" class="error-msg hidden" style="margin-top: 16px;"></div>
   </div>
 
   <div class="card" style="padding: 0; overflow: hidden; position: relative;">
@@ -163,7 +161,7 @@
     spotModal.classList.add("active");
   }
 
-  function closeSpotModal() {
+  function closeModalFn() {
     selectedSpot = null;
     spotModal.classList.remove("active");
     setModalMsg("");
@@ -174,20 +172,25 @@
 
     modalTitle.textContent = `Spot #${selectedSpot.spot_number}`;
     
+    const isOwner = (selectedSpot.occupied_by_user_id == currentUser.user.id || selectedSpot.reserved_by_user_id == currentUser.user.id);
+    
     let statusClass = "status-available";
-    if (selectedSpot.status === "OCCUPIED") statusClass = "status-occupied";
-    if (selectedSpot.status === "RESERVED") statusClass = "status-reserved";
+    if (isOwner) statusClass = "status-mine";
+    else if (selectedSpot.status === "OCCUPIED") statusClass = "status-occupied";
+    else if (selectedSpot.status === "RESERVED") statusClass = "status-reserved";
 
     let detailsHtml = `
-      <p><strong>Status:</strong> <span class="status-badge ${statusClass}">${selectedSpot.status}</span></p>
+      <p><strong>Status:</strong> <span class="status-badge ${statusClass}">${isOwner ? 'MY SPOT' : selectedSpot.status}</span></p>
       <p><strong>Type:</strong> ${selectedSpot.spot_type === 'EV_ONLY' ? '⚡ EV ONLY' : 'Standard'}</p>
     `;
 
-    if (selectedSpot.status === "OCCUPIED") {
+    if (selectedSpot.status === "OCCUPIED" && !isOwner) {
       detailsHtml += `<p><strong>Occupied by:</strong> ${selectedSpot.occupied_by || 'Unknown'}</p>`;
       if (selectedSpot.vehicle_plate) detailsHtml += `<p><strong>Plate:</strong> ${selectedSpot.vehicle_plate}</p>`;
-    } else if (selectedSpot.status === "RESERVED") {
+    } else if (selectedSpot.status === "RESERVED" && !isOwner) {
       detailsHtml += `<p><strong>Reserved by:</strong> ${selectedSpot.reserved_by || 'Unknown'}</p>`;
+      detailsHtml += `<p><strong>Time Left:</strong> ${formatCountdown(selectedSpot.reserved_until)}</p>`;
+    } else if (isOwner && selectedSpot.status === "RESERVED") {
       detailsHtml += `<p><strong>Time Left:</strong> ${formatCountdown(selectedSpot.reserved_until)}</p>`;
     }
 
@@ -195,46 +198,55 @@
 
     // Actions logic
     modalActions.innerHTML = "";
-    const isOwner = (selectedSpot.occupied_by_user_id == currentUser.user.id || selectedSpot.reserved_by_user_id == currentUser.user.id);
     const isEV = currentUser.user.vehicle_type === 'ELECTRIC' || currentUser.user.vehicle_type === 'HYBRID';
     const isEVSpot = selectedSpot.spot_type === 'EV_ONLY';
 
-    if (selectedSpot.status === "AVAILABLE" || (selectedSpot.status === "RESERVED" && isOwner)) {
+    if (isOwner) {
+      const btn = document.createElement("button");
+      btn.style.background = "#ea4335";
+      btn.style.color = "white";
+      btn.textContent = selectedSpot.status === "OCCUPIED" ? "Release Spot" : "Cancel Reservation";
+      btn.onclick = () => handleAction("release");
+      modalActions.appendChild(btn);
+      
+      if (selectedSpot.status === "RESERVED") {
+        const claimBtn = document.createElement("button");
+        claimBtn.textContent = "Confirm Arrival (Claim)";
+        claimBtn.onclick = () => handleAction("claim");
+        modalActions.appendChild(claimBtn);
+      }
+    } else if (selectedSpot.status === "AVAILABLE") {
       if (isEVSpot && !isEV) {
         const p = document.createElement("p");
         p.className = "small";
         p.style.color = "#d93025";
-        p.textContent = "Only Electric/Hybrid vehicles can claim this spot.";
+        p.style.textAlign = "center";
+        p.textContent = "⚡ Electric Vehicles Only";
         modalActions.appendChild(p);
       } else {
         const btn = document.createElement("button");
-        btn.textContent = "Claim This Spot";
+        btn.textContent = "Claim Spot";
         btn.onclick = () => handleAction("claim");
         modalActions.appendChild(btn);
+
+        const resBtn = document.createElement("button");
+        resBtn.className = "secondary";
+        resBtn.textContent = "Reserve Spot";
+        resBtn.onclick = () => handleAction("reserve");
+        modalActions.appendChild(resBtn);
       }
-    }
-
-    if (selectedSpot.status === "AVAILABLE" && (!isEVSpot || isEV)) {
-      const btn = document.createElement("button");
-      btn.className = "secondary";
-      btn.textContent = "Reserve (5 mins)";
-      btn.onclick = () => handleAction("reserve");
-      modalActions.appendChild(btn);
-    }
-
-    if (isOwner) {
-      const btn = document.createElement("button");
-      btn.className = "secondary";
-      btn.style.background = "#ea4335";
-      btn.style.color = "white";
-      btn.textContent = selectedSpot.status === "OCCUPIED" ? "Release My Spot" : "Cancel Reservation";
-      btn.onclick = () => handleAction("release");
-      modalActions.appendChild(btn);
+    } else if (selectedSpot.status === "RESERVED") {
+       const p = document.createElement("p");
+       p.className = "small";
+       p.style.textAlign = "center";
+       p.textContent = "Currently Reserved";
+       modalActions.appendChild(p);
     }
 
     const reportBtn = document.createElement("button");
-    reportBtn.className = "secondary";
-    reportBtn.textContent = "Report an Issue";
+    reportBtn.className = "secondary small";
+    reportBtn.style.marginTop = "12px";
+    reportBtn.textContent = "Report Issue";
     reportBtn.onclick = () => {
       location.href = `report.html?spot_id=${selectedSpot.id}&lot_id=${lotId}`;
     };
@@ -261,16 +273,16 @@
         await apiPost("/spots/release.php", { spot_id: selectedSpot.id });
         setMainMsg(`Spot #${selectedSpot.spot_number} released.`, false);
       }
-      closeSpotModal();
+      closeModalFn();
       await refreshSpots();
     } catch (e) {
       setModalMsg(e.message);
     }
   }
 
-  closeModal.onclick = closeSpotModal;
+  closeModal.onclick = closeModalFn;
   window.onclick = (event) => {
-    if (event.target == spotModal) closeSpotModal();
+    if (event.target == spotModal) closeModalFn();
   };
 
   // Auto-refresh logic
