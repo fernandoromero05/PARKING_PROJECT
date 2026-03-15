@@ -129,7 +129,9 @@
       const lot = await apiGet(`/lots/get_lot.php?lot_id=${lotId}`);
       lotCode = lot.lot.code;
       lotTitle.textContent = `${lot.lot.name} (${lotCode})`;
-      mapImg.src = `./assets/maps/${lot.lot.map_image}`;
+      
+      // Add cache-busting parameter to force reload
+      mapImg.src = `./assets/maps/${lot.lot.map_image}?v=${Date.now()}`;
 
       await refreshSpots();
     } catch (e) {
@@ -142,7 +144,7 @@
     const data = await apiGet(`/lots/get_spots.php?lot_id=${lotId}`);
     renderSpots(spotsLayer, data.spots, (spot) => {
       openSpotModal(spot);
-    }, currentUser.user.id);
+    }, currentUser.user.id, lotCode);
 
     if (selectedSpot) {
       const fresh = data.spots.find(s => s.id === selectedSpot.id);

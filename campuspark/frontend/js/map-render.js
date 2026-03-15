@@ -1,16 +1,40 @@
-export function computeSpotPositions(totalSpots) {
+const LOT_LAYOUTS = {
+  'LOT_A': {
+    rows: 8,
+    cols: 4,
+    leftStart: 0.15,
+    topStart: 0.15,
+    colGap: 0.18,
+    rowGap: 0.09
+  },
+  'LOT_B': {
+    rows: 4,
+    cols: 4,
+    leftStart: 0.20,
+    topStart: 0.25,
+    colGap: 0.20,
+    rowGap: 0.18
+  },
+  'LOT_C': {
+    rows: 4,
+    cols: 3,
+    leftStart: 0.25,
+    topStart: 0.30,
+    colGap: 0.20,
+    rowGap: 0.18
+  }
+};
+
+export function computeSpotPositions(totalSpots, lotCode = 'LOT_A') {
+  const layout = LOT_LAYOUTS[lotCode] || LOT_LAYOUTS['LOT_A'];
   const positions = [];
-  const leftStart = 0.05;
-  const topStart = 0.10;
-  const colGap = 0.10;
-  const rowGap = 0.10;
 
   for (let i = 0; i < totalSpots; i++) {
-    const r = i % 8;
-    const c = Math.floor(i / 8);
+    const r = i % layout.rows;
+    const c = Math.floor(i / layout.rows);
     positions.push({
-      left: leftStart + c * colGap,
-      top: topStart + r * rowGap,
+      left: layout.leftStart + c * layout.colGap,
+      top: layout.topStart + r * layout.rowGap,
     });
   }
   return positions;
@@ -25,18 +49,19 @@ function getSpotClass(spot, currentUserId) {
   const type = normalizeValue(spot.spot_type);
   const isMine = (spot.occupied_by_user_id == currentUserId || spot.reserved_by_user_id == currentUserId);
 
+  if (isMine && status === "RESERVED") return "mine-reserved";
   if (isMine) return "mine";
-  if (status === "OCCUPIED") return "occ";
   if (status === "RESERVED") return "reserved";
+  if (status === "OCCUPIED") return "occ";
   if (type === "EV_ONLY") return "ev";
   return "free";
 }
 
-export function renderSpots(layerEl, spots, onSpotClick, currentUserId) {
+export function renderSpots(layerEl, spots, onSpotClick, currentUserId, lotCode = 'LOT_A') {
   if (!layerEl) return;
   layerEl.innerHTML = "";
   
-  const positions = computeSpotPositions(spots.length);
+  const positions = computeSpotPositions(spots.length, lotCode);
 
   spots.forEach((spot, idx) => {
     const div = document.createElement("div");
