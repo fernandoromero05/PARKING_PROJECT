@@ -144,7 +144,7 @@
     const data = await apiGet(`/lots/get_spots.php?lot_id=${lotId}`);
     renderSpots(spotsLayer, data.spots, (spot) => {
       openSpotModal(spot);
-    });
+    }, currentUser.user.id);
 
     if (selectedSpot) {
       const fresh = data.spots.find(s => s.id === selectedSpot.id);
@@ -196,15 +196,25 @@
     // Actions logic
     modalActions.innerHTML = "";
     const isOwner = (selectedSpot.occupied_by_user_id == currentUser.user.id || selectedSpot.reserved_by_user_id == currentUser.user.id);
+    const isEV = currentUser.user.vehicle_type === 'ELECTRIC' || currentUser.user.vehicle_type === 'HYBRID';
+    const isEVSpot = selectedSpot.spot_type === 'EV_ONLY';
 
     if (selectedSpot.status === "AVAILABLE" || (selectedSpot.status === "RESERVED" && isOwner)) {
-      const btn = document.createElement("button");
-      btn.textContent = "Claim This Spot";
-      btn.onclick = () => handleAction("claim");
-      modalActions.appendChild(btn);
+      if (isEVSpot && !isEV) {
+        const p = document.createElement("p");
+        p.className = "small";
+        p.style.color = "#d93025";
+        p.textContent = "Only Electric/Hybrid vehicles can claim this spot.";
+        modalActions.appendChild(p);
+      } else {
+        const btn = document.createElement("button");
+        btn.textContent = "Claim This Spot";
+        btn.onclick = () => handleAction("claim");
+        modalActions.appendChild(btn);
+      }
     }
 
-    if (selectedSpot.status === "AVAILABLE") {
+    if (selectedSpot.status === "AVAILABLE" && (!isEVSpot || isEV)) {
       const btn = document.createElement("button");
       btn.className = "secondary";
       btn.textContent = "Reserve (5 mins)";
@@ -217,7 +227,7 @@
       btn.className = "secondary";
       btn.style.background = "#ea4335";
       btn.style.color = "white";
-      btn.textContent = "Release Spot";
+      btn.textContent = selectedSpot.status === "OCCUPIED" ? "Release My Spot" : "Cancel Reservation";
       btn.onclick = () => handleAction("release");
       modalActions.appendChild(btn);
     }

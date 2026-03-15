@@ -98,6 +98,21 @@ try {
     throw new Exception('Spot not found');
   }
 
+  // Check if user already has an active spot (occupied OR reserved)
+  $stmt = $pdo->prepare("
+    SELECT id FROM spots 
+    WHERE (occupied_by_user_id = ? OR (reserved_by_user_id = ? AND status = 'RESERVED')) 
+      AND id != ?
+  ");
+  $stmt->execute([$userId, $userId, (int)$spot['id']]);
+  if ($stmt->fetch()) {
+    $pdo->rollBack();
+    json_fail('You already have an active spot. Release it first.', 400);
+  }
+
+  // Check if user already has a reserved spot (optional, but good for UX)
+  // If they are claiming THEIR OWN reserved spot, that's fine.
+
   if ($spot['spot_type'] === 'EV_ONLY' && !in_array($vehicleType, ['ELECTRIC', 'HYBRID'], true)) {
     $pdo->rollBack();
     json_fail('This spot is for electric or hybrid cars only', 403);

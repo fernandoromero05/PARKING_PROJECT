@@ -2,6 +2,7 @@
 #mapImg { width: 100%; border-radius: 10px; display: block; }
 #spotsLayer { position: absolute; inset: 0; z-index: 5; }
 .spot.reserved { background: #e8f0fe; color: #1a73e8; border-color: #1a73e8; }
+.spot.mine { background: #1a73e8; color: white; border: 3px solid #ffce00; box-shadow: 0 0 10px rgba(26,115,232,0.5); }
 
 .spot {
   position: absolute;

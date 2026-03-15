@@ -20,28 +20,27 @@ function normalizeValue(value) {
   return String(value || "").trim().toUpperCase();
 }
 
-function getSpotClass(spot) {
+function getSpotClass(spot, currentUserId) {
   const status = normalizeValue(spot.status);
   const type = normalizeValue(spot.spot_type);
+  const isMine = (spot.occupied_by_user_id == currentUserId || spot.reserved_by_user_id == currentUserId);
 
+  if (isMine) return "mine";
   if (status === "OCCUPIED") return "occ";
   if (status === "RESERVED") return "reserved";
-  
-  // Available states
   if (type === "EV_ONLY") return "ev";
   return "free";
 }
 
-export function renderSpots(layerEl, spots, onSpotClick) {
+export function renderSpots(layerEl, spots, onSpotClick, currentUserId) {
   if (!layerEl) return;
   layerEl.innerHTML = "";
   
-  // Simple layout: let's try to fit them in a grid
   const positions = computeSpotPositions(spots.length);
 
   spots.forEach((spot, idx) => {
     const div = document.createElement("div");
-    const cls = getSpotClass(spot);
+    const cls = getSpotClass(spot, currentUserId);
 
     div.className = `spot ${cls}`;
     

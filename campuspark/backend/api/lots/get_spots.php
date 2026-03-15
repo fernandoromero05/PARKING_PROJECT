@@ -22,6 +22,8 @@ $stmt = $pdo->prepare("
     s.vehicle_plate,
     s.vehicle_make,
     s.vehicle_type,
+    s.occupied_by_user_id,
+    s.reserved_by_user_id,
     u.username AS occupied_by,
     ru.username AS reserved_by
   FROM spots s
