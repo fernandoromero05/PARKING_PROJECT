@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CampusPark - Profile</title>
+  <link rel="stylesheet" href="./css/main.css" />
+</head>
+<body>
+<header>
+  <div><a href="index.html" style="color:white;text-decoration:none;"><b>CampusPark</b></a></div>
+  <div id="topUser" class="small"></div>
+</header>
+
+<main>
+  <div class="card">
+    <h3>Profile</h3>
+    <div><b>Token balance:</b> <span id="tokens">—</span></div>
+    <div><b>Level:</b> <span id="level">—</span></div>
+    <div><b>Rating:</b> <span id="rating">—</span></div>
+    <div><b>Complaints received:</b> <span id="complaints">—</span></div>
+    <div><b>Global rank:</b> <span id="rank">—</span></div>
+    <div><b>Vehicle:</b> <span id="vehicle">—</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Token ledger</h3>
+    <div id="ledger"></div>
+  </div>
+
+  <div class="card">
+    <button onclick="location.href='index.html'">Back</button>
+  </div>
+</main>
+
+<script type="module">
+  import { me } from "./js/auth.js";
+  import { apiGet } from "./js/api.js";
+
+  const topUser = document.getElementById("topUser");
+  const tokensEl = document.getElementById("tokens");
+  const levelEl = document.getElementById("level");
+  const ratingEl = document.getElementById("rating");
+  const complaintsEl = document.getElementById("complaints");
+  const rankEl = document.getElementById("rank");
+  const vehicleEl = document.getElementById("vehicle");
+  const ledgerEl = document.getElementById("ledger");
+
+  function renderStars(n) {
+    return "⭐".repeat(Math.max(0, Number(n) || 0));
+  }
+
+  async function boot() {
+    const u = await me();
+    const user = u.user;
+
+    topUser.textContent = `Logged in as ${user.username}`;
+    tokensEl.textContent = user.tokens;
+    levelEl.textContent = user.level;
+    ratingEl.textContent = `${renderStars(user.rating)} (${user.rating}/5)`;
+    complaintsEl.textContent = user.complaints;
+    rankEl.textContent = `#${user.rank} / ${user.total_users}`;
+    vehicleEl.textContent = `${user.vehicle_plate || "—"} | ${user.vehicle_make || "—"} | ${user.vehicle_type || "—"}`;
+
+    const led = await apiGet("/tokens/ledger.php");
+    ledgerEl.innerHTML = led.ledger.map(x =>
+      `<div class="small">${x.created_at}: <b>${x.delta > 0 ? "+" : ""}${x.delta}</b> — ${x.reason}</div>`
+    ).join("");
+  }
+
+  boot().catch(() => location.href = "index.html");
+</script>
+</body>
+</html>
