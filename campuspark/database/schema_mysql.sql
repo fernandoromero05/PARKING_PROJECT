@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   vehicle_plate VARCHAR(20) NULL,
   vehicle_make VARCHAR(60) NULL,
   vehicle_type ENUM('ELECTRIC','HYBRID','DIESEL_GAS') NULL,
+  token_recovery_updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
