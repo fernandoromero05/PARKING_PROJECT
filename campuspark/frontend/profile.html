@@ -1,73 +1,131 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>CampusPark - Profile</title>
-  <link rel="stylesheet" href="./css/main.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - CampusPark</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .profile-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 500px;
+            margin: 2rem auto;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            font-size: 0.875rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+        .ban-warning {
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: none;
+            font-weight: 500;
+        }
+    </style>
 </head>
 <body>
-<header>
-  <div><a href="index.html" style="color:white;text-decoration:none;"><b>CampusPark</b></a></div>
-  <div id="topUser" class="small"></div>
-</header>
+    <header>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="profile.html" class="active">Profile</a>
+            <button id="logoutBtn">Logout</button>
+        </nav>
+    </header>
 
-<main>
-  <div class="card">
-    <h3>Profile</h3>
-    <div><b>Token balance:</b> <span id="tokens">—</span></div>
-    <div><b>Level:</b> <span id="level">—</span></div>
-    <div><b>Rating:</b> <span id="rating">—</span></div>
-    <div><b>Complaints received:</b> <span id="complaints">—</span></div>
-    <div><b>Global rank:</b> <span id="rank">—</span></div>
-    <div><b>Vehicle:</b> <span id="vehicle">—</span></div>
-  </div>
+    <main>
+        <div class="profile-card">
+            <h1>Driver Profile</h1>
+            <div id="banWarning" class="ban-warning">
+                Warning: Your account is currently under review or banned.
+            </div>
+            
+            <div class="user-info">
+                <h2 id="displayName">Loading...</h2>
+                <p id="displayEmail"></p>
+                <p id="displayVehicle"></p>
+            </div>
 
-  <div class="card">
-    <h3>Token ledger</h3>
-    <div id="ledger"></div>
-  </div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div id="ratingVal" class="stat-value">--</div>
+                    <div class="stat-label">Rating</div>
+                </div>
+                <div class="stat-item">
+                    <div id="tokenVal" class="stat-value">--</div>
+                    <div class="stat-label">Total Tokens</div>
+                </div>
+                <div class="stat-item">
+                    <div id="rankVal" class="stat-value">--</div>
+                    <div class="stat-label">Driver Rank</div>
+                </div>
+                <div class="stat-item">
+                    <div id="levelVal" class="stat-value">--</div>
+                    <div class="stat-label">Experience Level</div>
+                </div>
+            </div>
+        </div>
+    </main>
 
-  <div class="card">
-    <button onclick="location.href='index.html'">Back</button>
-  </div>
-</main>
+    <script type="module">
+        import { apiGet, API_BASE } from './js/api.js';
+        
+        async function loadProfile() {
+            try {
+                const data = await apiGet('/auth/me.php');
+                const user = data.user;
 
-<script type="module">
-  import { me } from "./js/auth.js";
-  import { apiGet } from "./js/api.js";
+                document.getElementById('displayName').textContent = user.username;
+                document.getElementById('displayEmail').textContent = user.email;
+                document.getElementById('displayVehicle').textContent = `${user.vehicle_make} (${user.vehicle_plate})`;
+                
+                document.getElementById('ratingVal').textContent = user.rating.toFixed(1) + " / 5.0";
+                document.getElementById('tokenVal').textContent = user.tokens;
+                document.getElementById('rankVal').textContent = `#${user.rank} / ${user.total_users}`;
+                document.getElementById('levelVal').textContent = user.level;
 
-  const topUser = document.getElementById("topUser");
-  const tokensEl = document.getElementById("tokens");
-  const levelEl = document.getElementById("level");
-  const ratingEl = document.getElementById("rating");
-  const complaintsEl = document.getElementById("complaints");
-  const rankEl = document.getElementById("rank");
-  const vehicleEl = document.getElementById("vehicle");
-  const ledgerEl = document.getElementById("ledger");
+                if (user.is_banned) {
+                    document.getElementById('banWarning').style.display = 'block';
+                }
 
-  function renderStars(n) {
-    return "⭐".repeat(Math.max(0, Number(n) || 0));
-  }
+                if (user.tokens <= -150) {
+                  document.getElementById('tokenVal').style.color = 'red';
+                }
+            } catch (err) {
+                console.error(err);
+                window.location.href = 'login.html';
+            }
+        }
 
-  async function boot() {
-    const u = await me();
-    const user = u.user;
+        document.getElementById('logoutBtn').onclick = async () => {
+            await fetch(`${API_BASE}/auth/logout.php`, { credentials: "include" });
+            window.location.href = 'login.html';
+        };
 
-    topUser.textContent = `Logged in as ${user.username}`;
-    tokensEl.textContent = user.tokens;
-    levelEl.textContent = user.level;
-    ratingEl.textContent = `${renderStars(user.rating)} (${user.rating}/5)`;
-    complaintsEl.textContent = user.complaints;
-    rankEl.textContent = `#${user.rank} / ${user.total_users}`;
-    vehicleEl.textContent = `${user.vehicle_plate || "—"} | ${user.vehicle_make || "—"} | ${user.vehicle_type || "—"}`;
-
-    const led = await apiGet("/tokens/ledger.php");
-    ledgerEl.innerHTML = led.ledger.map(x =>
-      `<div class="small">${x.created_at}: <b>${x.delta > 0 ? "+" : ""}${x.delta}</b> — ${x.reason}</div>`
-    ).join("");
-  }
-
-  boot().catch(() => location.href = "index.html");
-</script>
+        loadProfile();
+    </script>
 </body>
 </html>

@@ -48,8 +48,12 @@
 
   async function checkSession() {
     try {
-      await me();
-      window.location.href = "index.html";
+      const data = await me();
+      if (data.user.role === 'ADMIN') {
+        window.location.href = "admin.html";
+      } else {
+        window.location.href = "index.html";
+      }
     } catch (e) {
       // Not logged in, stay here
     }
@@ -70,8 +74,12 @@
     loginBtn.textContent = "Loading...";
 
     try {
-      await login(user, pass);
-      window.location.href = "index.html";
+      const data = await login(user, pass);
+      if (data.user.role === 'ADMIN') {
+        window.location.href = "admin.html";
+      } else {
+        window.location.href = "index.html";
+      }
     } catch (e) {
       authMsg.textContent = e.message;
       authMsg.classList.remove("hidden");

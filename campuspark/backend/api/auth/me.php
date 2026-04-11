@@ -32,6 +32,9 @@ try {
       username,
       email,
       tokens,
+      role,
+      is_banned,
+      rating,
       vehicle_plate,
       vehicle_make,
       vehicle_type
@@ -57,7 +60,8 @@ try {
   $stmt->execute([$userId]);
   $complaints = (int)$stmt->fetch()['c'];
 
-  $rating = compute_rating($complaints);
+  // Use the database rating if it's set, otherwise fallback to computed
+  $rating = (float)$user['rating'];
 
   $stmt = $pdo->prepare("
     SELECT COUNT(*) + 1 AS rank_position
@@ -78,6 +82,8 @@ try {
       'username' => $user['username'],
       'email' => $user['email'],
       'tokens' => $tokens,
+      'role' => $user['role'],
+      'is_banned' => (bool)$user['is_banned'],
       'vehicle_plate' => $user['vehicle_plate'],
       'vehicle_make' => $user['vehicle_make'],
       'vehicle_type' => $user['vehicle_type'],

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - CampusPark</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+            margin: 2rem auto;
+            max-width: 1200px;
+        }
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #f8f9fa;
+            color: #2c3e50;
+        }
+        .stat-banner {
+            background: #2c3e50;
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+        .tag {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .tag-penalty { background: #fee2e2; color: #b91c1c; }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="admin.html" class="active">Admin Dashboard</a>
+            <button id="logoutBtn">Logout</button>
+        </nav>
+    </header>
+
+    <main>
+        <div class="stat-banner">
+            <h1>System Health & Report Oversight</h1>
+            <p>Total Issues Reported: <span id="totalReports">--</span></p>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <h2>Top Offenders</h2>
+                <table id="offendersTable">
+                    <thead><tr><th>User</th><th>Reports</th></tr></thead>
+                    <tbody><!-- Dynamic --></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>Recent Student Reports</h2>
+                <table id="reportsTable">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Target</th>
+                            <th>Note</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody><!-- Dynamic --></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { apiGet, API_BASE } from './js/api.js';
+
+        async function loadAdminData() {
+            try {
+                const data = await apiGet('/admin/reports_summary.php');
+                const summary = data.summary;
+
+                document.getElementById('totalReports').textContent = summary.total_reports;
+
+                const offendersTable = document.querySelector('#offendersTable tbody');
+                offendersTable.innerHTML = summary.top_offenders.map(o => `
+                    <tr><td>${o.username}</td><td><strong>${o.report_count}</strong></td></tr>
+                `).join('');
+
+                const reportsTable = document.querySelector('#reportsTable tbody');
+                reportsTable.innerHTML = summary.recent_reports.map(r => `
+                    <tr>
+                        <td><span class="tag tag-penalty">${r.type.replace(/_/g, ' ')}</span></td>
+                        <td>${r.reported_name || 'System / N/A'}</td>
+                        <td title="${r.note || ''}">${r.note ? r.note.substring(0,20) + '...' : '-'}</td>
+                        <td>${new Date(r.created_at).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                console.error(err);
+                alert("Access Denied: You must be an administrator to view this page.");
+                window.location.href = 'index.html';
+            }
+        }
+
+        document.getElementById('logoutBtn').onclick = async () => {
+            await fetch(`${API_BASE}/auth/logout.php`, { credentials: "include" });
+            window.location.href = 'login.html';
+        };
+
+        loadAdminData();
+    </script>
+</body>
+</html>

@@ -41,11 +41,33 @@ try {
     ");
     $topOffenders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Get the 20 most recent reports with details
+    $stmt = $pdo->query("
+        SELECT 
+            r.id, 
+            r.type, 
+            r.note, 
+            r.created_at, 
+            reporter.username as reporter_name,
+            reported.username as reported_name,
+            s.spot_number,
+            l.name as lot_name
+        FROM reports r
+        JOIN users reporter ON r.reporter_user_id = reporter.id
+        LEFT JOIN users reported ON r.reported_user_id = reported.id
+        JOIN spots s ON r.spot_id = s.id
+        JOIN lots l ON s.lot_id = l.id
+        ORDER BY r.created_at DESC
+        LIMIT 20
+    ");
+    $recentReports = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     json_ok([
         'summary' => [
             'total_reports' => $totalReports,
             'stats_by_type' => $reportStats,
-            'top_offenders' => $topOffenders
+            'top_offenders' => $topOffenders,
+            'recent_reports' => $recentReports
         ]
     ]);
 } catch (Throwable $e) {
