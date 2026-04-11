@@ -23,6 +23,7 @@ $stmt = $pdo->prepare("
     password_hash,
     tokens,
     role,
+    rating,
     is_banned,
     ban_expires_at,
     vehicle_plate,
@@ -68,6 +69,7 @@ try {
       email,
       tokens,
       role,
+      rating,
       vehicle_plate,
       vehicle_make,
       vehicle_type
@@ -91,6 +93,7 @@ try {
       'email' => $updatedUser['email'],
       'tokens' => (int)$updatedUser['tokens'],
       'role' => $updatedUser['role'],
+      'rating' => (float)$updatedUser['rating'],
       'vehicle_plate' => $updatedUser['vehicle_plate'],
       'vehicle_make' => $updatedUser['vehicle_make'],
       'vehicle_type' => $updatedUser['vehicle_type']

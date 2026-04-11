@@ -42,6 +42,10 @@ try {
   $stmt = $pdo->prepare("INSERT INTO claims (user_id, spot_id, action) VALUES (?, ?, 'RELEASE')");
   $stmt->execute([$userId, $spotId]);
 
+  // Reputation Recovery: Increase rating by 0.1 per successful release (max 5.0)
+  $stmt = $pdo->prepare("UPDATE users SET rating = LEAST(5.0, rating + 0.1) WHERE id=?");
+  $stmt->execute([$userId]);
+
   $pdo->commit();
   json_ok();
 } catch (Throwable $e) {

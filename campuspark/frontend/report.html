@@ -7,8 +7,14 @@
 </head>
 <body>
 <header>
-  <div><a href="index.html" style="color:white;text-decoration:none;"><b>CampusPark</b></a></div>
-  <div id="topUser" class="small"></div>
+  <div style="display:flex; flex-direction:column;">
+    <b>CampusPark</b>
+    <div id="topUser" class="small" style="color: rgba(255,255,255,0.8); font-weight:normal;"></div>
+  </div>
+  <nav>
+    <button type="button" onclick="window.location.href='index.html'" class="nav-btn">Home</button>
+    <button id="logoutBtnHeader" type="button" style="background: rgba(234, 67, 53, 0.9);">Logout</button>
+  </nav>
 </header>
 
 <main>
@@ -38,7 +44,7 @@
 </main>
 
 <script type="module">
-  import { me } from "./js/auth.js";
+  import { me, logout } from "./js/auth.js";
   import { fileReport } from "./js/report.js";
 
   const url = new URL(location.href);
@@ -69,6 +75,11 @@
 
   document.getElementById("backBtn").onclick = () => {
     location.href = `lot.html?lot_id=${encodeURIComponent(lotId)}`;
+  };
+
+  document.getElementById("logoutBtnHeader").onclick = async () => {
+    await logout();
+    window.location.href = "login.html";
   };
 
   boot().catch(() => location.href = "index.html");

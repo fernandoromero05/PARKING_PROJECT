@@ -53,6 +53,10 @@ try {
     $penalty = 10;
     $reason = "Penalty: " . strtolower(str_replace('_', ' ', $type));
     
+    // Decrease rating by 0.5 for any valid report (min 1.0)
+    $stmt = $pdo->prepare("UPDATE users SET rating = GREATEST(1.0, rating - 0.5) WHERE id=?");
+    $stmt->execute([$reportedUserId]);
+
     // Some types have specific penalties already, but we'll apply a standard one here
     // unless it's one of the types with manual overrides below.
     if (!in_array($type, ['POORLY_PARKED', 'DID_NOT_CLAIM'], true)) {
@@ -136,7 +140,8 @@ try {
       $stmt = $pdo->prepare("
         UPDATE users
         SET is_banned = TRUE,
-            ban_expires_at = DATE_ADD(NOW(), INTERVAL 1 DAY)
+            ban_expires_at = DATE_ADD(NOW(), INTERVAL 1 DAY),
+            rating = 1.0
         WHERE id=?
       ");
       $stmt->execute([$reportedUserId]);

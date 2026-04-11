@@ -8,11 +8,12 @@
 </head>
 <body>
 <header>
-  <div><b>CampusPark</b></div>
-  <nav>
-    <button onclick="location.href='index.html'" class="nav-btn active">Home</button>
-    <button onclick="location.href='profile.html'" class="nav-btn">Profile</button>
-    <button id="logoutBtnHeader" style="background: rgba(234, 67, 53, 0.9);">Logout</button>
+  <div style="display:flex; flex-direction:column;">
+    <b>CampusPark</b>
+    <div id="topUser" class="small" style="color: rgba(255,255,255,0.8); font-weight:normal;"></div>
+  </div>
+  <nav id="adminNav">
+    <!-- Admin button injected via JS -->
   </nav>
 </header>
 
@@ -49,8 +50,8 @@
 </main>
 
 <script type="module">
-  import { me, logout } from "./js/auth.js";
-  import { apiGet } from "./js/api.js";
+  import { me, logout } from "./js/auth.js?v=6";
+  import { apiGet } from "./js/api.js?v=6";
 
   const appCard = document.getElementById("appCard");
   const loading = document.getElementById("loading");
@@ -91,26 +92,27 @@
     try {
       const u = await me();
       
-      // Redirect Admin to Admin Dashboard
-      if (u.user.role === 'ADMIN') {
-        window.location.href = "admin.html";
-        return;
+      // Inject Admin Panel button ONLY if user is ADMIN
+      if (u.user && u.user.role === 'ADMIN') {
+        const nav = document.getElementById("adminNav");
+        if (nav) {
+          nav.innerHTML = `<button type="button" onclick="window.location.href='admin.html'" class="nav-btn" style="background: #fbbc04 !important; color: #333 !important;">Admin Panel</button>`;
+        }
       }
 
-      topUser.textContent = `Hello, ${u.user.username} (${u.user.tokens} tokens)`;
+      if (topUser) {
+        topUser.textContent = `Hello, ${u.user.username} (${u.user.tokens} tokens)`;
+      }
+
       loading.classList.add("hidden");
       appCard.classList.remove("hidden");
       await loadLots();
       renderVehicleSummary(u.user);
     } catch (e) {
+      console.error("Boot error:", e);
       window.location.href = "login.html";
     }
   }
-
-  document.getElementById("logoutBtnHeader").onclick = async () => {
-    await logout();
-    window.location.href = "login.html";
-  };
 
   document.getElementById("logoutBtn").onclick = async () => {
     await logout();
@@ -132,6 +134,20 @@
   document.getElementById("profileBtn").onclick = () => {
     location.href = "profile.html";
   };
+
+  // Proactive ban check every 5 seconds
+  setInterval(async () => {
+    try {
+      // Use a raw fetch with a timestamp to bypass ALL caching
+      const res = await fetch(`/campuspark/backend/api/auth/me.php?cb=${Date.now()}`, { credentials: "include" });
+      if (res.status === 403) {
+        // Trigger the signal directly
+        const data = await res.json().catch(() => ({}));
+        // We import api.js globally to access this, or we just use me() since it's imported
+        await me(); 
+      }
+    } catch (e) {}
+  }, 5000);
 
   boot();
 </script>

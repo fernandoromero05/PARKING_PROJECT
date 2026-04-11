@@ -9,8 +9,14 @@
 </head>
 <body>
 <header>
-  <div><a href="index.html" style="color:white;text-decoration:none;"><b>CampusPark</b></a></div>
-  <div id="topUser" class="small" style="color: white;"></div>
+  <div style="display:flex; flex-direction:column;">
+    <b>CampusPark</b>
+    <div id="topUser" class="small" style="color: rgba(255,255,255,0.8); font-weight:normal;"></div>
+  </div>
+  <nav>
+    <button type="button" onclick="window.location.href='index.html'" class="nav-btn">Home</button>
+    <button id="logoutBtnHeader" type="button" style="background: rgba(234, 67, 53, 0.9);">Logout</button>
+  </nav>
 </header>
 
 <main>
@@ -59,9 +65,9 @@
 </main>
 
 <script type="module">
-  import { me } from "./js/auth.js";
-  import { apiGet, apiPost } from "./js/api.js";
-  import { renderSpots } from "./js/map-render.js?v=4";
+  import { me, logout } from "./js/auth.js?v=6";
+  import { apiGet, apiPost } from "./js/api.js?v=6";
+  import { renderSpots } from "./js/map-render.js?v=6";
 
   const url = new URL(location.href);
   const lotId = Number(url.searchParams.get("lot_id") || "0");
@@ -280,7 +286,13 @@
     }
   }
 
-  closeModal.onclick = closeModalFn;
+  document.getElementById("closeModal").onclick = closeModalFn;
+  
+  document.getElementById("logoutBtnHeader").onclick = async () => {
+    await logout();
+    window.location.href = "login.html";
+  };
+
   window.onclick = (event) => {
     if (event.target == spotModal) closeModalFn();
   };
@@ -292,6 +304,16 @@
       await refreshSpots();
     } catch {}
   }, 10000);
+
+  // Proactive ban check every 5 seconds
+  setInterval(async () => {
+    try {
+      const res = await fetch(`/campuspark/backend/api/auth/me.php?cb=${Date.now()}`, { credentials: "include" });
+      if (res.status === 403) {
+        await me(); // Triggers the modal from api.js
+      }
+    } catch (e) {}
+  }, 5000);
 
   load();
 </script>

@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./api.js";
+import { apiGet, apiPost } from "./api.js?v=6";
 
 export async function me() {
   return apiGet("/auth/me.php");

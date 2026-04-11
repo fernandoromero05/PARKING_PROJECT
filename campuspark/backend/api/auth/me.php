@@ -9,17 +9,15 @@ require_once __DIR__ . '/../../src/middleware/auth_guard.php';
 enable_cors();
 $userId = require_auth();
 
-function compute_level(int $tokens): int {
+function compute_level(int $tokens, float $rating): int {
   if ($tokens <= 0) return 1;
-  return (int)floor($tokens / 10) + 1;
-}
-
-function compute_rating(int $complaints): int {
-  if ($complaints === 0) return 5;
-  if ($complaints <= 3) return 4;
-  if ($complaints <= 6) return 3;
-  if ($complaints <= 10) return 2;
-  return 1;
+  $tokenLevel = (int)floor($tokens / 10) + 1;
+  
+  // Cap level based on rating (e.g., if rating is 1.0, cap is Level 1)
+  // A rating of 5.0 allows up to Level 10+
+  $ratingCap = (int)max(1, floor($rating * 2));
+  
+  return min($tokenLevel, $ratingCap);
 }
 
 $pdo->beginTransaction();
@@ -50,7 +48,8 @@ try {
   }
 
   $tokens = (int)$user['tokens'];
-  $level = compute_level($tokens);
+  $rating = (float)$user['rating'];
+  $level = compute_level($tokens, $rating);
 
   $stmt = $pdo->prepare("
     SELECT COUNT(*) AS c
@@ -59,9 +58,6 @@ try {
   ");
   $stmt->execute([$userId]);
   $complaints = (int)$stmt->fetch()['c'];
-
-  // Use the database rating if it's set, otherwise fallback to computed
-  $rating = (float)$user['rating'];
 
   $stmt = $pdo->prepare("
     SELECT COUNT(*) + 1 AS rank_position
