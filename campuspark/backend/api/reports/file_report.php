@@ -48,6 +48,30 @@ try {
   ");
   $stmt->execute([$reporterId, $spotId, $reportedUserId, $type, $note]);
 
+  // Default penalty for any valid reported user (if not already handled specifically)
+  if ($reportedUserId !== null) {
+    $penalty = 10;
+    $reason = "Penalty: " . strtolower(str_replace('_', ' ', $type));
+    
+    // Some types have specific penalties already, but we'll apply a standard one here
+    // unless it's one of the types with manual overrides below.
+    if (!in_array($type, ['POORLY_PARKED', 'DID_NOT_CLAIM'], true)) {
+      $stmt = $pdo->prepare("
+        UPDATE users
+        SET tokens = tokens - ?,
+            token_recovery_updated_at = NOW()
+        WHERE id=?
+      ");
+      $stmt->execute([$penalty, $reportedUserId]);
+
+      $stmt = $pdo->prepare("
+        INSERT INTO token_ledger (user_id, delta, reason)
+        VALUES (?, ?, ?)
+      ");
+      $stmt->execute([$reportedUserId, -$penalty, $reason]);
+    }
+  }
+
   // Immediate penalty for POORLY_PARKED if we have a target
   if ($type === 'POORLY_PARKED' && $reportedUserId !== null) {
     $stmt = $pdo->prepare("
@@ -99,6 +123,23 @@ try {
         ");
         $stmt->execute([$reportedUserId]);
       }
+    }
+  }
+
+  // BAN CHECK: If tokens <= -200, enforce temporary ban (1 day)
+  if ($reportedUserId !== null) {
+    $stmt = $pdo->prepare("SELECT tokens FROM users WHERE id=?");
+    $stmt->execute([$reportedUserId]);
+    $currentTokens = (int)$stmt->fetchColumn();
+
+    if ($currentTokens <= -200) {
+      $stmt = $pdo->prepare("
+        UPDATE users
+        SET is_banned = TRUE,
+            ban_expires_at = DATE_ADD(NOW(), INTERVAL 1 DAY)
+        WHERE id=?
+      ");
+      $stmt->execute([$reportedUserId]);
     }
   }
 
