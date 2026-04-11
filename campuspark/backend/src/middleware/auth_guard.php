@@ -23,8 +23,22 @@ function require_auth(): int {
       if (!$expires || $expires > $now) {
         json_fail('Your account is temporarily banned due to poor ranking or low token balance.', 403);
       } else {
-        // Ban expired, lift it automatically
-        $stmt = $pdo->prepare("UPDATE users SET is_banned = FALSE, ban_expires_at = NULL WHERE id = ?");
+        // Ban expired, lift it automatically and reset tokens to 5
+        $stmt = $pdo->prepare("
+          UPDATE users 
+          SET is_banned = FALSE, 
+              ban_expires_at = NULL,
+              tokens = 5,
+              token_recovery_updated_at = NOW() 
+          WHERE id = ?
+        ");
+        $stmt->execute([$userId]);
+
+        // Log the recovery in the ledger
+        $stmt = $pdo->prepare("
+          INSERT INTO token_ledger (user_id, delta, reason)
+          VALUES (?, 5, 'Account restored after ban: Token reset to 5')
+        ");
         $stmt->execute([$userId]);
       }
     }

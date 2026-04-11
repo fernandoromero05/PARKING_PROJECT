@@ -15,6 +15,49 @@ button { cursor: pointer; border: 0; background: #1a73e8; color: white; font-wei
 button:hover { background: #1557b0; }
 button.secondary { background: #eaecf0; color: #3c4043; }
 button.secondary:hover { background: #dadce0; }
+
+a { text-decoration: none; color: #1a73e8; }
+a:hover { text-decoration: underline; }
+
+.nav-btn {
+  display: inline-block;
+  padding: 8px 18px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+  text-decoration: none !important;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  cursor: pointer;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  text-decoration: none !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+}
+
+.nav-btn.active {
+  background: white !important;
+  color: #1a73e8 !important;
+  border-color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.nav-btn:active {
+  transform: translateY(0);
+}
+
+header nav {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .small { font-size: 12px; color: #5f6368; }
 .text-center { text-align: center; }
 .mt-4 { margin-top: 16px; }

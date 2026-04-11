@@ -9,7 +9,11 @@
 <body>
 <header>
   <div><b>CampusPark</b></div>
-  <div id="topUser" class="small" style="color: white;"></div>
+  <nav>
+    <button onclick="location.href='index.html'" class="nav-btn active">Home</button>
+    <button onclick="location.href='profile.html'" class="nav-btn">Profile</button>
+    <button id="logoutBtnHeader" style="background: rgba(234, 67, 53, 0.9);">Logout</button>
+  </nav>
 </header>
 
 <main>
@@ -86,6 +90,13 @@
   async function boot() {
     try {
       const u = await me();
+      
+      // Redirect Admin to Admin Dashboard
+      if (u.user.role === 'ADMIN') {
+        window.location.href = "admin.html";
+        return;
+      }
+
       topUser.textContent = `Hello, ${u.user.username} (${u.user.tokens} tokens)`;
       loading.classList.add("hidden");
       appCard.classList.remove("hidden");
@@ -95,6 +106,11 @@
       window.location.href = "login.html";
     }
   }
+
+  document.getElementById("logoutBtnHeader").onclick = async () => {
+    await logout();
+    window.location.href = "login.html";
+  };
 
   document.getElementById("logoutBtn").onclick = async () => {
     await logout();

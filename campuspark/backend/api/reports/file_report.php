@@ -126,13 +126,13 @@ try {
     }
   }
 
-  // BAN CHECK: If tokens <= -200, enforce temporary ban (1 day)
+  // BAN CHECK: If tokens <= 0, enforce temporary ban (1 day)
   if ($reportedUserId !== null) {
     $stmt = $pdo->prepare("SELECT tokens FROM users WHERE id=?");
     $stmt->execute([$reportedUserId]);
     $currentTokens = (int)$stmt->fetchColumn();
 
-    if ($currentTokens <= -200) {
+    if ($currentTokens <= 0) {
       $stmt = $pdo->prepare("
         UPDATE users
         SET is_banned = TRUE,

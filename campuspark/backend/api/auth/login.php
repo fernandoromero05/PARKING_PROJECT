@@ -23,6 +23,8 @@ $stmt = $pdo->prepare("
     password_hash,
     tokens,
     role,
+    is_banned,
+    ban_expires_at,
     vehicle_plate,
     vehicle_make,
     vehicle_type
@@ -35,6 +37,21 @@ $user = $stmt->fetch();
 
 if (!$user || !password_verify($p, $user['password_hash'])) {
   json_fail('Invalid credentials', 401);
+}
+
+// Check for active ban
+if ($user['is_banned']) {
+  $now = new DateTime();
+  $expires = $user['ban_expires_at'] ? new DateTime($user['ban_expires_at']) : null;
+  if (!$expires || $expires > $now) {
+    $diff = $now->diff($expires);
+    $parts = [];
+    if ($diff->d > 0) $parts[] = $diff->d . "d";
+    if ($diff->h > 0) $parts[] = $diff->h . "h";
+    if ($diff->i > 0) $parts[] = $diff->i . "m";
+    $timeStr = implode(" ", $parts);
+    json_fail("You have been banned. Time remaining: $timeStr", 403);
+  }
 }
 
 $_SESSION['user_id'] = (int)$user['id'];
