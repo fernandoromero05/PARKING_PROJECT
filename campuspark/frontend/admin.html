@@ -81,6 +81,7 @@
                             <th>Type</th>
                             <th>Target</th>
                             <th>Note</th>
+                            <th>Image</th> <!-- 🆕 SOLO AÑADIDO -->
                             <th>Time</th>
                         </tr>
                     </thead>
@@ -110,7 +111,20 @@
                     <tr>
                         <td><span class="tag tag-penalty">${r.type.replace(/_/g, ' ')}</span></td>
                         <td>${r.reported_name || 'System / N/A'}</td>
-                        <td title="${r.note || ''}">${r.note ? r.note.substring(0,20) + '...' : '-'}</td>
+
+                        <td title="${r.note || ''}">
+                            ${r.note ? r.note.substring(0,20) + '...' : '-'}
+                        </td>
+
+                        <!-- 🆕 IMAGEN -->
+                        <td>
+                            ${
+                                r.image_url
+                                    ? `<a href="${r.image_url}" target="_blank">📷 View</a>`
+                                    : '-'
+                            }
+                        </td>
+
                         <td>${new Date(r.created_at).toLocaleString()}</td>
                     </tr>
                 `).join('');

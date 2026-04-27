@@ -34,7 +34,14 @@
         <option value="ABANDONED_VEHICLE">Abandoned vehicle</option>
         <option value="OTHER">Other</option>
       </select>
+
       <input id="note" placeholder="Optional note" />
+
+      <!-- 🆕 SOLO ENFORCER -->
+      <div id="imageWrap" style="display:none;">
+        <input id="image" type="file" accept="image/*" />
+      </div>
+
       <button id="sendBtn">Send</button>
       <button id="backBtn" class="secondary">Back</button>
     </div>
@@ -59,6 +66,11 @@
   async function boot() {
     const u = await me();
     topUser.textContent = `Logged in as ${u.user.username} (${u.user.tokens} tokens)`;
+
+    // 🆕 ENFORCER CHECK
+    if (u.user.role === "ENFORCER") {
+      document.getElementById("imageWrap").style.display = "block";
+    }
   }
 
   document.getElementById("sendBtn").onclick = async () => {
@@ -66,7 +78,45 @@
     try {
       const type = document.getElementById("type").value;
       const note = document.getElementById("note").value;
-      const res = await fileReport(spotId, type, note);
+      const image = document.getElementById("image")?.files?.[0];
+
+      let res;
+
+      // =========================
+      // 🧠 SAFE MODE (NO BREAK API)
+      // =========================
+      if (image) {
+        try {
+          const formData = new FormData();
+          formData.append("spot_id", spotId);
+          formData.append("type", type);
+          formData.append("note", note);
+          formData.append("image", image);
+
+          const r = await fetch("/campuspark/backend/api/reports/create.php", {
+            method: "POST",
+            body: formData,
+            credentials: "include"
+          });
+
+          const text = await r.text();
+
+          try {
+            res = JSON.parse(text);
+          } catch (e) {
+            console.error("Server returned non-JSON:", text);
+            throw new Error("Server error while uploading image");
+          }
+
+        } catch (err) {
+          console.warn("Image upload failed, fallback to normal report:", err);
+          res = await fileReport(spotId, type, note);
+        }
+      } else {
+        // ORIGINAL FLOW (UNCHANGED)
+        res = await fileReport(spotId, type, note);
+      }
+
       setMsg(`Report sent. Target user: ${res.reported_user_id ?? "none"}`);
     } catch (e) {
       setMsg(e.message);
