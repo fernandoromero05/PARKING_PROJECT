@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(120) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   tokens INT NOT NULL DEFAULT 100,
-  role ENUM('STUDENT','ADMIN') NOT NULL DEFAULT 'STUDENT',
+  role ENUM('STUDENT','ADMIN','ENFORCER') NOT NULL DEFAULT 'STUDENT',
   is_banned BOOLEAN NOT NULL DEFAULT FALSE,
   ban_expires_at TIMESTAMP NULL,
   rating DECIMAL(3,2) NOT NULL DEFAULT 5.00,
@@ -152,3 +152,8 @@ WHERE l.code='LOT_C';
 INSERT INTO users (username, email, password_hash, role, tokens, vehicle_plate, vehicle_make, vehicle_type)
 VALUES ('admin', 'admin@campuspark.edu', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ADMIN', 1000, 'ADMIN-01', 'Admin Mobile', 'ELECTRIC')
 ON DUPLICATE KEY UPDATE role='ADMIN';
+
+-- DEFAULT ENFORCER (password: password)
+INSERT INTO users (username, email, password_hash, role)
+VALUES ('enforcer1', 'enforcer@campuspark.edu', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ENFORCER')
+ON DUPLICATE KEY UPDATE role='ENFORCER';
