@@ -21,15 +21,32 @@ require_fields($data, ['user_id']);
 $targetId = (int)$data['user_id'];
 if ($targetId <= 0) json_fail('Invalid user_id');
 
-$stmt = $pdo->prepare("SELECT id FROM users WHERE id = ?");
+$stmt = $pdo->prepare("SELECT id, role FROM users WHERE id = ?");
 $stmt->execute([$targetId]);
-if (!$stmt->fetch()) json_fail('User not found', 404);
+$target = $stmt->fetch();
+if (!$target) json_fail('User not found', 404);
 
-$stmt = $pdo->prepare("
-    UPDATE users
-    SET is_banned = FALSE, ban_expires_at = NULL
-    WHERE id = ?
-");
-$stmt->execute([$targetId]);
+$pdo->beginTransaction();
+try {
+    $stmt = $pdo->prepare("
+        UPDATE users
+        SET is_banned = FALSE,
+            ban_expires_at = NULL,
+            tokens = 15,
+            token_recovery_updated_at = NOW()
+        WHERE id = ?
+    ");
+    $stmt->execute([$targetId]);
 
-json_ok(['unbanned_user_id' => $targetId]);
+    $stmt = $pdo->prepare("
+        INSERT INTO token_ledger (user_id, delta, reason)
+        VALUES (?, 15, 'Account restored after ban: tokens reset to 15')
+    ");
+    $stmt->execute([$targetId]);
+
+    $pdo->commit();
+    json_ok(['unbanned_user_id' => $targetId]);
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    json_fail($e->getMessage(), 500);
+}
