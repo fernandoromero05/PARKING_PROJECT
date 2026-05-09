@@ -100,6 +100,14 @@
         }
       }
 
+      // Inject Enforcer Panel button ONLY if user is ENFORCER
+      if (u.user && u.user.role === 'ENFORCER') {
+        const nav = document.getElementById("adminNav");
+        if (nav) {
+          nav.innerHTML = `<button type="button" onclick="window.location.href='enforcer.html'" class="nav-btn" style="background: #e65c00 !important; color: white !important;">Enforcer Panel</button>`;
+        }
+      }
+
       if (topUser) {
         topUser.textContent = `Hello, ${u.user.username} (${u.user.tokens} tokens)`;
       }

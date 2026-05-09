@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enforcer Dashboard - CampusPark</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .stat-banner {
+            background: #e65c00;
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+        .stat-banner .counts {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 1rem;
+        }
+        .stat-banner .count-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .stat-banner .count-item span:first-child {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .stat-banner .count-item span:last-child {
+            font-size: 0.85rem;
+            opacity: 0.85;
+        }
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin: 0 auto 2rem auto;
+            max-width: 1200px;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #f8f9fa;
+            color: #2c3e50;
+        }
+        .lot-group th {
+            background: #e65c00;
+            color: white;
+            font-size: 0.9rem;
+        }
+        .tag {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .tag-occupied  { background: #fee2e2; color: #b91c1c; }
+        .tag-reserved  { background: #fef3c7; color: #92400e; }
+        .tag-ev        { background: #d1fae5; color: #065f46; }
+        .btn-sm {
+            padding: 4px 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-right: 4px;
+        }
+        .btn-release { background: #ef4444; color: white; }
+        .btn-ban     { background: #f59e0b; color: white; }
+        .btn-report  { background: #3b82f6; color: white; }
+        #refreshBtn  { background: #e65c00; color: white; }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <button type="button" onclick="window.location.href='index.html'" class="nav-btn">Back to Dashboard</button>
+            <button id="logoutBtn" style="background: rgba(234,67,53,0.9);">Logout</button>
+        </nav>
+    </header>
+
+    <main style="padding: 1.5rem; max-width: 1200px; margin: 0 auto;">
+        <div class="stat-banner">
+            <h1>Enforcer Dashboard</h1>
+            <div class="counts">
+                <div class="count-item">
+                    <span id="countOccupied">--</span>
+                    <span>Occupied</span>
+                </div>
+                <div class="count-item">
+                    <span id="countReserved">--</span>
+                    <span>Reserved</span>
+                </div>
+                <div class="count-item">
+                    <span id="countAvailable">--</span>
+                    <span>Available</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 style="margin:0;">Active Spots</h2>
+                <button id="refreshBtn" class="btn-sm" onclick="loadData()">Refresh</button>
+            </div>
+            <div id="spotsContainer">Loading...</div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { apiGet, apiPost, API_BASE } from './js/api.js';
+        import { me, logout } from './js/auth.js?v=6';
+
+        async function boot() {
+            try {
+                const u = await me();
+                if (!u.user || !['ENFORCER', 'ADMIN'].includes(u.user.role)) {
+                    alert('Access denied.');
+                    window.location.href = 'index.html';
+                }
+            } catch {
+                window.location.href = 'login.html';
+            }
+            await loadData();
+        }
+
+        window.loadData = async function() {
+            try {
+                const lotsData = await apiGet('/lots/list.php');
+                const lots = lotsData.lots;
+
+                let occupied = 0, reserved = 0, available = 0;
+                const lotSpots = [];
+
+                for (const lot of lots) {
+                    const data = await apiGet(`/lots/get_spots.php?lot_id=${lot.id}`);
+                    const active = data.spots.filter(s => s.status !== 'AVAILABLE');
+                    data.spots.forEach(s => {
+                        if (s.status === 'OCCUPIED')  occupied++;
+                        else if (s.status === 'RESERVED') reserved++;
+                        else available++;
+                    });
+                    if (active.length > 0) lotSpots.push({ lot, spots: active });
+                }
+
+                document.getElementById('countOccupied').textContent  = occupied;
+                document.getElementById('countReserved').textContent   = reserved;
+                document.getElementById('countAvailable').textContent  = available;
+
+                const container = document.getElementById('spotsContainer');
+                if (lotSpots.length === 0) {
+                    container.innerHTML = '<p style="color:#666;">No active spots at the moment.</p>';
+                    return;
+                }
+
+                container.innerHTML = lotSpots.map(({ lot, spots }) => `
+                    <table style="margin-bottom:1.5rem;">
+                        <thead>
+                            <tr class="lot-group">
+                                <th colspan="7">${lot.name} (${lot.code})</th>
+                            </tr>
+                            <tr>
+                                <th>Spot</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>User</th>
+                                <th>Plate</th>
+                                <th>Since / Until</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${spots.map(s => {
+                                const username = s.occupied_by || s.reserved_by || '-';
+                                const userId   = s.occupied_by_user_id || s.reserved_by_user_id || null;
+                                const time     = s.status === 'OCCUPIED'
+                                    ? (s.occupied_since ? new Date(s.occupied_since).toLocaleString() : '-')
+                                    : (s.reserved_until ? new Date(s.reserved_until).toLocaleString() : '-');
+                                return `
+                                <tr>
+                                    <td>#${s.spot_number}</td>
+                                    <td><span class="tag ${s.spot_type === 'EV_ONLY' ? 'tag-ev' : ''}">${s.spot_type === 'EV_ONLY' ? 'EV' : 'Standard'}</span></td>
+                                    <td><span class="tag ${s.status === 'OCCUPIED' ? 'tag-occupied' : 'tag-reserved'}">${s.status}</span></td>
+                                    <td>${username}</td>
+                                    <td>${s.vehicle_plate || '-'}</td>
+                                    <td>${time}</td>
+                                    <td>
+                                        <button class="btn-sm btn-release" onclick="forceRelease(${s.id})">Force Release</button>
+                                        ${userId ? `<button class="btn-sm btn-ban" onclick="banUser(${userId})">Ban User</button>` : ''}
+                                        <button class="btn-sm btn-report" onclick="window.location.href='report.html?spot_id=${s.id}&lot_id=${lot.id}'">Report</button>
+                                    </td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        window.forceRelease = async function(spotId) {
+            if (!confirm('Force-release this spot? The occupant will be displaced.')) return;
+            try {
+                await apiPost('/admin/force_release.php', { spot_id: spotId });
+                await loadData();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        };
+
+        window.banUser = async function(userId) {
+            const hours = prompt('Ban duration in hours (default 24, min 1):', '24');
+            if (hours === null) return;
+            const duration = Math.max(1, parseInt(hours) || 24);
+            try {
+                await apiPost('/admin/ban_user.php', { user_id: userId, duration_hours: duration });
+                alert('User banned for ' + duration + ' hour(s).');
+                await loadData();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        };
+
+        document.getElementById('logoutBtn').onclick = async () => {
+            await logout();
+            window.location.href = 'login.html';
+        };
+
+        // Proactive ban-check poll every 5 seconds
+        setInterval(async () => {
+            try {
+                const res = await fetch(`/campuspark/backend/api/auth/me.php?cb=${Date.now()}`, { credentials: 'include' });
+                if (res.status === 403) await me();
+            } catch {}
+        }, 5000);
+
+        boot();
+    </script>
+</body>
+</html>
