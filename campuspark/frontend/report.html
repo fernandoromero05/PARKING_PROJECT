@@ -210,6 +210,21 @@
         <textarea id="note" rows="3" placeholder="Describe the issue in more detail..." style="resize:vertical;"></textarea>
       </div>
 
+      <!-- Shown only to enforcers/admins when filing a new report -->
+      <div id="newImageWrap" class="form-group hidden">
+        <label>Evidence photo <span style="font-weight:400; color:#5f6368;">(optional — max 5 MB)</span></label>
+        <div class="image-drop" id="newImageDrop">
+          <input type="file" id="newImage" accept="image/jpeg,image/png,image/webp,image/gif" />
+          <div class="drop-label">
+            <div style="font-size:1.5rem; margin-bottom:0.25rem;">📷</div>
+            <p style="margin:0;"><span>Browse</span> or drag &amp; drop an image here</p>
+            <p style="margin:4px 0 0; font-size:0.75rem;">JPEG · PNG · WebP · GIF</p>
+          </div>
+        </div>
+        <img id="newImagePreview" alt="Preview" style="margin-top:0.75rem; border-radius:8px; max-height:180px; width:100%; object-fit:cover; display:none; border:1px solid #e5e7eb;" />
+        <button type="button" id="newClearImage" style="display:none; margin-top:0.4rem; background:none; border:none; color:#d93025; font-size:0.8rem; cursor:pointer; padding:0; font-weight:600;">Remove image</button>
+      </div>
+
       <div class="form-actions">
         <button id="sendBtn" style="background:#d93025;">Send Report</button>
         <button id="cancelBtn" class="secondary">Cancel</button>
@@ -266,6 +281,29 @@
   imageDrop.addEventListener("dragleave", () => imageDrop.classList.remove("dragover"));
   imageDrop.addEventListener("drop",      e => { e.preventDefault(); imageDrop.classList.remove("dragover"); });
 
+  // New-report image preview (enforcer only)
+  const newImageInput   = document.getElementById("newImage");
+  const newImagePreview = document.getElementById("newImagePreview");
+  const newClearBtn     = document.getElementById("newClearImage");
+  const newImageDrop    = document.getElementById("newImageDrop");
+
+  newImageInput.addEventListener("change", () => {
+    const file = newImageInput.files[0];
+    if (!file) return;
+    newImagePreview.src           = URL.createObjectURL(file);
+    newImagePreview.style.display = "block";
+    newClearBtn.style.display     = "block";
+  });
+  newClearBtn.addEventListener("click", () => {
+    newImageInput.value           = "";
+    newImagePreview.style.display = "none";
+    newClearBtn.style.display     = "none";
+    URL.revokeObjectURL(newImagePreview.src);
+  });
+  newImageDrop.addEventListener("dragover",  e => { e.preventDefault(); newImageDrop.classList.add("dragover"); });
+  newImageDrop.addEventListener("dragleave", () => newImageDrop.classList.remove("dragover"));
+  newImageDrop.addEventListener("drop",      e => { e.preventDefault(); newImageDrop.classList.remove("dragover"); });
+
   async function boot() {
     const u  = await me();
     userRole = u.user.role;
@@ -273,6 +311,8 @@
       `Logged in as ${u.user.username} (${u.user.tokens} tokens)`;
 
     if (userRole === "ENFORCER" || userRole === "ADMIN") {
+      document.getElementById("newImageWrap").classList.remove("hidden");
+
       // Check for an existing imageless report on this spot
       const res = await fetch(`${API_BASE}/reports/spot_report.php?spot_id=${spotId}`, {
         credentials: "include",
@@ -325,19 +365,36 @@
     }
   });
 
-  // File a new report (all roles)
+  // File a new report
   document.getElementById("sendBtn").addEventListener("click", async () => {
     document.getElementById("resultBox").style.display = "none";
-    const type = document.getElementById("type").value;
-    const note = document.getElementById("note").value.trim();
-    const btn  = document.getElementById("sendBtn");
+    const type  = document.getElementById("type").value;
+    const note  = document.getElementById("note").value.trim();
+    const image = newImageInput.files[0];
+    const btn   = document.getElementById("sendBtn");
     btn.disabled = true; btn.textContent = "Sending...";
 
     try {
-      const res = await fileReport(spotId, type, note || null);
+      let res;
+      if (userRole === "ENFORCER" || userRole === "ADMIN") {
+        const form = new FormData();
+        form.append("spot_id", spotId);
+        form.append("type", type);
+        if (note)  form.append("note", note);
+        if (image) form.append("image", image);
+        const r    = await fetch(`${API_BASE}/reports/create.php`, {
+          method: "POST", credentials: "include", body: form,
+        });
+        const data = await r.json();
+        if (!data.ok) throw new Error(data.error || "Request failed");
+        res = data;
+      } else {
+        res = await fileReport(spotId, type, note || null);
+      }
       const target = res.reported_user_id ? `User #${res.reported_user_id}` : "no specific user";
       showResult(`Report submitted. Penalty applied to: ${target}.`, true);
       document.getElementById("note").value = "";
+      newClearBtn.click();
     } catch (e) {
       showResult(e.message, false);
     } finally {

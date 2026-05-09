@@ -84,7 +84,6 @@
             margin-right: 4px;
         }
         .btn-release { background: #ef4444; color: white; }
-        .btn-ban     { background: #f59e0b; color: white; }
         .btn-report  { background: #3b82f6; color: white; }
         #refreshBtn  { background: #e65c00; color: white; }
     </style>
@@ -204,7 +203,6 @@
                                     <td>${time}</td>
                                     <td>
                                         <button class="btn-sm btn-release" onclick="forceRelease(${s.id})">Force Release</button>
-                                        ${userId ? `<button class="btn-sm btn-ban" onclick="banUser(${userId})">Ban User</button>` : ''}
                                         <button class="btn-sm btn-report" onclick="window.location.href='report.html?spot_id=${s.id}&lot_id=${lot.id}'">Report</button>
                                     </td>
                                 </tr>`;
@@ -221,19 +219,6 @@
             if (!confirm('Force-release this spot? The occupant will be displaced.')) return;
             try {
                 await apiPost('/admin/force_release.php', { spot_id: spotId });
-                await loadData();
-            } catch (err) {
-                alert('Error: ' + err.message);
-            }
-        };
-
-        window.banUser = async function(userId) {
-            const hours = prompt('Ban duration in hours (default 24, min 1):', '24');
-            if (hours === null) return;
-            const duration = Math.max(1, parseInt(hours) || 24);
-            try {
-                await apiPost('/admin/ban_user.php', { user_id: userId, duration_hours: duration });
-                alert('User banned for ' + duration + ' hour(s).');
                 await loadData();
             } catch (err) {
                 alert('Error: ' + err.message);
