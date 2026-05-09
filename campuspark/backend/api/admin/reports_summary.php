@@ -73,13 +73,37 @@ try {
     ");
     $monthlyBreakdown = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // User stats counters
+    $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'STUDENT'");
+    $totalStudents = (int)$stmt->fetchColumn();
+
+    $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'ENFORCER'");
+    $totalEnforcers = (int)$stmt->fetchColumn();
+
+    $stmt = $pdo->query("
+        SELECT COUNT(DISTINCT u.id)
+        FROM users u
+        JOIN spots s ON s.occupied_by_user_id = u.id OR s.reserved_by_user_id = u.id
+        WHERE s.status IN ('OCCUPIED','RESERVED')
+    ");
+    $activeNow = (int)$stmt->fetchColumn();
+
+    $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_banned = TRUE AND ban_expires_at > NOW()");
+    $currentlyBanned = (int)$stmt->fetchColumn();
+
     json_ok([
         'summary' => [
             'total_reports'     => $totalReports,
             'stats_by_type'     => $reportStats,
             'top_offenders'     => $topOffenders,
             'recent_reports'    => $recentReports,
-            'monthly_breakdown' => $monthlyBreakdown
+            'monthly_breakdown' => $monthlyBreakdown,
+            'user_stats'        => [
+                'total_students'   => $totalStudents,
+                'total_enforcers'  => $totalEnforcers,
+                'active_now'       => $activeNow,
+                'currently_banned' => $currentlyBanned
+            ]
         ]
     ]);
 } catch (Throwable $e) {

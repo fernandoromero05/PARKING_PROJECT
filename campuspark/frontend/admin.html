@@ -84,6 +84,24 @@
         <div class="stat-banner">
             <h1>System Health & Report Oversight</h1>
             <p>Total Issues Reported: <span id="totalReports">--</span></p>
+            <div style="display:flex; justify-content:center; gap:3rem; margin-top:1rem; flex-wrap:wrap;">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <span id="statStudents" style="font-size:2rem; font-weight:bold;">--</span>
+                    <span style="font-size:0.85rem; opacity:0.85;">Students</span>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <span id="statEnforcers" style="font-size:2rem; font-weight:bold;">--</span>
+                    <span style="font-size:0.85rem; opacity:0.85;">Enforcers</span>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <span id="statActiveNow" style="font-size:2rem; font-weight:bold;">--</span>
+                    <span style="font-size:0.85rem; opacity:0.85;">Active Now</span>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <span id="statBanned" style="font-size:2rem; font-weight:bold;">--</span>
+                    <span style="font-size:0.85rem; opacity:0.85;">Currently Banned</span>
+                </div>
+            </div>
         </div>
 
         <div class="dashboard-grid">
@@ -128,6 +146,12 @@
                 const summary = data.summary;
 
                 document.getElementById('totalReports').textContent = summary.total_reports;
+
+                const us = summary.user_stats || {};
+                document.getElementById('statStudents').textContent  = us.total_students   ?? '--';
+                document.getElementById('statEnforcers').textContent = us.total_enforcers  ?? '--';
+                document.getElementById('statActiveNow').textContent = us.active_now       ?? '--';
+                document.getElementById('statBanned').textContent    = us.currently_banned ?? '--';
 
                 const offendersTable = document.querySelector('#offendersTable tbody');
                 offendersTable.innerHTML = summary.top_offenders.map(o => `
