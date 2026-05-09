@@ -42,16 +42,13 @@ if (!$user || !password_verify($p, $user['password_hash'])) {
 
 // Check for active ban
 if ($user['is_banned']) {
-  $now = new DateTime();
-  $expires = $user['ban_expires_at'] ? new DateTime($user['ban_expires_at']) : null;
+  $now = new DateTime('now', new DateTimeZone('UTC'));
+  $expires = $user['ban_expires_at']
+    ? new DateTime($user['ban_expires_at'], new DateTimeZone('UTC'))
+    : null;
   if (!$expires || $expires > $now) {
-    $diff = $now->diff($expires);
-    $parts = [];
-    if ($diff->d > 0) $parts[] = $diff->d . "d";
-    if ($diff->h > 0) $parts[] = $diff->h . "h";
-    if ($diff->i > 0) $parts[] = $diff->i . "m";
-    $timeStr = implode(" ", $parts);
-    json_fail("You have been banned. Time remaining: $timeStr", 403);
+    $expiresIso = $expires ? $expires->format(DateTime::ATOM) : null;
+    json_fail("Your account is banned.", 403, ['ban_expires_at' => $expiresIso]);
   }
 }
 

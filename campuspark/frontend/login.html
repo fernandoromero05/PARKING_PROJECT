@@ -20,6 +20,11 @@
       </div>
 
       <div id="authMsg" class="error-msg hidden"></div>
+      <div id="banBox" class="hidden" style="background:#fef3c7; border:1px solid #f59e0b; border-radius:8px; padding:1rem; margin-bottom:1rem; text-align:center;">
+        <p style="margin:0 0 0.4rem 0; font-weight:bold; color:#92400e;">Account Banned</p>
+        <p style="margin:0; color:#78350f; font-size:0.9rem;">Time remaining:</p>
+        <p id="banCountdown" style="margin:0.25rem 0 0 0; font-size:2rem; font-weight:bold; color:#b45309; letter-spacing:0.05em;">--:--:--</p>
+      </div>
 
       <div class="form-group">
         <label for="loginUser">Username or Email</label>
@@ -41,10 +46,42 @@
 </main>
 
 <script type="module">
-  import { login, me } from "./js/auth.js";
+  import { me } from "./js/auth.js";
 
-  const authMsg = document.getElementById("authMsg");
+  const API_BASE = "/campuspark/backend/api";
+  const authMsg  = document.getElementById("authMsg");
   const loginBtn = document.getElementById("loginBtn");
+  const banBox   = document.getElementById("banBox");
+  const banClock = document.getElementById("banCountdown");
+
+  let countdownTimer = null;
+
+  function startCountdown(expiresAt) {
+    banBox.classList.remove("hidden");
+    authMsg.classList.add("hidden");
+    loginBtn.disabled = true;
+
+    function tick() {
+      const secsLeft = Math.max(0, Math.floor((new Date(expiresAt) - Date.now()) / 1000));
+      const h = Math.floor(secsLeft / 3600);
+      const m = Math.floor((secsLeft % 3600) / 60);
+      const s = secsLeft % 60;
+      banClock.textContent =
+        String(h).padStart(2, '0') + ':' +
+        String(m).padStart(2, '0') + ':' +
+        String(s).padStart(2, '0');
+
+      if (secsLeft === 0) {
+        clearInterval(countdownTimer);
+        banClock.textContent = '00:00:00';
+        banBox.querySelector('p:last-of-type').textContent = 'Ban lifted — you may log in again.';
+        loginBtn.disabled = false;
+      }
+    }
+
+    tick();
+    countdownTimer = setInterval(tick, 1000);
+  }
 
   async function checkSession() {
     try {
@@ -70,18 +107,43 @@
     }
 
     authMsg.classList.add("hidden");
+    banBox.classList.add("hidden");
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
     loginBtn.disabled = true;
     loginBtn.textContent = "Loading...";
 
     try {
-      const data = await login(user, pass);
-      if (data.user.role === 'ADMIN') {
-        window.location.href = "admin.html";
-      } else {
-        window.location.href = "index.html";
+      const res  = await fetch(`${API_BASE}/auth/login.php`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username_or_email: user, password: pass }),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        if (data.user.role === 'ADMIN') {
+          window.location.href = "admin.html";
+        } else {
+          window.location.href = "index.html";
+        }
+        return;
       }
+
+      // Banned with a known expiry — show live countdown
+      if (res.status === 403 && data.ban_expires_at) {
+        loginBtn.textContent = "Login";
+        startCountdown(data.ban_expires_at);
+        return;
+      }
+
+      // Any other error
+      authMsg.textContent = data.error || "Login failed.";
+      authMsg.classList.remove("hidden");
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Login";
     } catch (e) {
-      authMsg.textContent = e.message;
+      authMsg.textContent = "Network error. Please try again.";
       authMsg.classList.remove("hidden");
       loginBtn.disabled = false;
       loginBtn.textContent = "Login";
