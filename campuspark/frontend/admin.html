@@ -48,6 +48,28 @@
             font-weight: bold;
         }
         .tag-penalty { background: #fee2e2; color: #b91c1c; }
+        .monthly-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .month-tile {
+            background: #f0f4ff;
+            border-radius: 8px;
+            padding: 0.75rem;
+            text-align: center;
+        }
+        .month-tile .month-count {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .month-tile .month-label {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
     </style>
 </head>
 <body>
@@ -79,15 +101,21 @@
                     <thead>
                         <tr>
                             <th>Type</th>
+                            <th>Reporter</th>
                             <th>Target</th>
                             <th>Note</th>
-                            <th>Image</th> <!-- 🆕 SOLO AÑADIDO -->
+                            <th>Image</th>
                             <th>Time</th>
                         </tr>
                     </thead>
                     <tbody><!-- Dynamic --></tbody>
                 </table>
             </div>
+        </div>
+
+        <div style="max-width:1200px; margin: 0 auto 2rem auto;" class="card">
+            <h2>Monthly Reports (last 12 months)</h2>
+            <div id="monthlySection">Loading...</div>
         </div>
     </main>
 
@@ -110,24 +138,25 @@
                 reportsTable.innerHTML = summary.recent_reports.map(r => `
                     <tr>
                         <td><span class="tag tag-penalty">${r.type.replace(/_/g, ' ')}</span></td>
+                        <td>${r.reporter_name || '-'}</td>
                         <td>${r.reported_name || 'System / N/A'}</td>
-
-                        <td title="${r.note || ''}">
-                            ${r.note ? r.note.substring(0,20) + '...' : '-'}
-                        </td>
-
-                        <!-- 🆕 IMAGEN -->
-                        <td>
-                            ${
-                                r.image_url
-                                    ? `<a href="${r.image_url}" target="_blank">📷 View</a>`
-                                    : '-'
-                            }
-                        </td>
-
+                        <td title="${r.note || ''}">${r.note ? r.note.substring(0, 20) + '...' : '-'}</td>
+                        <td>${r.image_url ? `<a href="${r.image_url}" target="_blank">View</a>` : '-'}</td>
                         <td>${new Date(r.created_at).toLocaleString()}</td>
                     </tr>
                 `).join('');
+
+                const monthly = summary.monthly_breakdown || [];
+                const monthlySection = document.getElementById('monthlySection');
+                if (monthlySection) {
+                    monthlySection.innerHTML = monthly.length === 0
+                        ? '<p style="color:#666;">No data yet.</p>'
+                        : `<div class="monthly-grid">${monthly.map(m => `
+                            <div class="month-tile">
+                                <div class="month-count">${m.total}</div>
+                                <div class="month-label">${m.month}</div>
+                            </div>`).join('')}</div>`;
+                }
 
             } catch (err) {
                 console.error(err);

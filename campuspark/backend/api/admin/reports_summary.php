@@ -43,11 +43,12 @@ try {
 
     // Get the 20 most recent reports with details
     $stmt = $pdo->query("
-        SELECT 
-            r.id, 
-            r.type, 
-            r.note, 
-            r.created_at, 
+        SELECT
+            r.id,
+            r.type,
+            r.note,
+            r.image_url,
+            r.created_at,
             reporter.username as reporter_name,
             reported.username as reported_name,
             s.spot_number,
@@ -62,12 +63,23 @@ try {
     ");
     $recentReports = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Monthly breakdown for the last 12 months
+    $stmt = $pdo->query("
+        SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as total
+        FROM reports
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+        ORDER BY month ASC
+    ");
+    $monthlyBreakdown = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     json_ok([
         'summary' => [
-            'total_reports' => $totalReports,
-            'stats_by_type' => $reportStats,
-            'top_offenders' => $topOffenders,
-            'recent_reports' => $recentReports
+            'total_reports'     => $totalReports,
+            'stats_by_type'     => $reportStats,
+            'top_offenders'     => $topOffenders,
+            'recent_reports'    => $recentReports,
+            'monthly_breakdown' => $monthlyBreakdown
         ]
     ]);
 } catch (Throwable $e) {
