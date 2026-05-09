@@ -48,6 +48,53 @@
             font-weight: bold;
         }
         .tag-penalty { background: #fee2e2; color: #b91c1c; }
+        tr[data-report-id] { cursor: pointer; }
+        tr[data-report-id]:hover td { background: #f0f4ff; }
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-backdrop.open { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 560px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: #666;
+        }
+        .modal h3 { margin: 0 0 1.25rem 0; color: #2c3e50; }
+        .detail-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.6rem;
+            font-size: 0.95rem;
+        }
+        .detail-label { font-weight: bold; color: #555; min-width: 130px; }
+        .modal-img {
+            margin-top: 1rem;
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid #eee;
+        }
         .monthly-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -79,6 +126,15 @@
             <button id="logoutBtn" style="background: rgba(234, 67, 53, 0.9);">Logout</button>
         </nav>
     </header>
+
+    <!-- Report detail modal -->
+    <div class="modal-backdrop" id="reportModal">
+        <div class="modal">
+            <button class="modal-close" id="modalClose" title="Close">&times;</button>
+            <h3>Report Detail</h3>
+            <div id="modalBody"></div>
+        </div>
+    </div>
 
     <main>
         <div class="stat-banner">
@@ -160,15 +216,19 @@
 
                 const reportsTable = document.querySelector('#reportsTable tbody');
                 reportsTable.innerHTML = summary.recent_reports.map(r => `
-                    <tr>
+                    <tr data-report-id="${r.id}" title="Click to see full details">
                         <td><span class="tag tag-penalty">${r.type.replace(/_/g, ' ')}</span></td>
                         <td>${r.reporter_name || '-'}</td>
                         <td>${r.reported_name || 'System / N/A'}</td>
                         <td title="${r.note || ''}">${r.note ? r.note.substring(0, 20) + '...' : '-'}</td>
-                        <td>${r.image_url ? `<a href="${r.image_url}" target="_blank">View</a>` : '-'}</td>
+                        <td>${r.image_url ? '📷' : '-'}</td>
                         <td>${new Date(r.created_at).toLocaleString()}</td>
                     </tr>
                 `).join('');
+
+                document.querySelectorAll('tr[data-report-id]').forEach(row => {
+                    row.addEventListener('click', () => openReportDetail(Number(row.dataset.reportId)));
+                });
 
                 const monthly = summary.monthly_breakdown || [];
                 const monthlySection = document.getElementById('monthlySection');
@@ -188,6 +248,43 @@
                 window.location.href = 'index.html';
             }
         }
+
+        async function openReportDetail(id) {
+            const modal   = document.getElementById('reportModal');
+            const body    = document.getElementById('modalBody');
+            body.innerHTML = '<p style="color:#666;">Loading...</p>';
+            modal.classList.add('open');
+
+            try {
+                const data = await apiGet(`/admin/report_detail.php?id=${id}`);
+                const r    = data.report;
+
+                const row = (label, value) =>
+                    `<div class="detail-row"><span class="detail-label">${label}</span><span>${value}</span></div>`;
+
+                body.innerHTML = `
+                    ${row('Report ID', '#' + r.id)}
+                    ${row('Type', `<span class="tag tag-penalty">${r.type.replace(/_/g, ' ')}</span>`)}
+                    ${row('Lot / Spot', `${r.lot_name} — Spot #${r.spot_number} (${r.spot_type})`)}
+                    ${row('Reporter', `${r.reporter_name} <em style="color:#888;">(${r.reporter_role})</em>`)}
+                    ${row('Reported User', r.reported_name
+                        ? `${r.reported_name} &nbsp;|&nbsp; ${r.reported_tokens} tokens &nbsp;|&nbsp; Rating ${r.reported_rating}${r.reported_is_banned ? ' &nbsp;<span style="color:#b91c1c;font-weight:bold;">BANNED</span>' : ''}`
+                        : '<em style="color:#888;">None</em>')}
+                    ${row('Note', r.note || '<em style="color:#888;">—</em>')}
+                    ${row('Filed at', new Date(r.created_at).toLocaleString())}
+                    ${r.image_url
+                        ? `<p style="font-weight:bold;margin:1rem 0 0.25rem 0;">Evidence photo</p>
+                           <img src="${r.image_url}" alt="Report image" class="modal-img">`
+                        : row('Image', '<em style="color:#888;">No image attached</em>')}
+                `;
+            } catch (err) {
+                body.innerHTML = `<p style="color:#b91c1c;">Failed to load: ${err.message}</p>`;
+            }
+        }
+
+        const modal = document.getElementById('reportModal');
+        document.getElementById('modalClose').onclick = () => modal.classList.remove('open');
+        modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
 
         document.getElementById('logoutBtn').onclick = async () => {
             await fetch(`${API_BASE}/auth/logout.php`, { credentials: "include" });
