@@ -1,16 +1,26 @@
 export function computeSpotPositions(totalSpots) {
-  const positions = [];
-  const leftStart = 0.05;
-  const topStart = 0.10;
-  const colGap = 0.10;
-  const rowGap = 0.10;
+  // Pick column count so the grid is landscape-shaped and fills the whole map
+  let COLS;
+  if (totalSpots <= 16)      COLS = 4;
+  else if (totalSpots <= 24) COLS = 6;
+  else                       COLS = 8;
 
+  const ROWS = Math.ceil(totalSpots / COLS);
+
+  // Spread from 3 % to 88 % so spots stay inside the image on both axes
+  const L0 = 0.03, L1 = 0.88;
+  const T0 = 0.07, T1 = 0.88;
+
+  const colStep = COLS > 1 ? (L1 - L0) / (COLS - 1) : 0;
+  const rowStep = ROWS > 1 ? (T1 - T0) / (ROWS - 1) : 0;
+
+  const positions = [];
   for (let i = 0; i < totalSpots; i++) {
-    const r = i % 8;
-    const c = Math.floor(i / 8);
+    const col = i % COLS;
+    const row = Math.floor(i / COLS);
     positions.push({
-      left: leftStart + c * colGap,
-      top: topStart + r * rowGap,
+      left: L0 + col * colStep,
+      top:  T0 + row * rowStep,
     });
   }
   return positions;
