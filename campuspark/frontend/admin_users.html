@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - CampusPark</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+        .toolbar input  { flex: 1; min-width: 180px; }
+        .toolbar select { width: 140px; flex: 0; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 0; }
+        th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #2c3e50; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        tr:hover td { background: #fafafa; }
+
+        .role-badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .role-STUDENT  { background: #e8f0fe; color: #1a56db; }
+        .role-ENFORCER { background: #fff3e0; color: #e65c00; }
+        .role-ADMIN    { background: #fef3c7; color: #92400e; }
+
+        .ban-badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        .active-badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .btn-sm {
+            padding: 4px 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: bold;
+            margin-right: 4px;
+        }
+        .btn-ban   { background: #f59e0b; color: white; }
+        .btn-unban { background: #10b981; color: white; }
+
+        .stat-banner {
+            background: #2c3e50;
+            color: white;
+            padding: 1.25rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .stat-banner h1 { margin: 0; font-size: 1.3rem; }
+
+        #emptyMsg { text-align: center; color: #9ca3af; padding: 2rem; display: none; }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <button type="button" onclick="window.location.href='admin.html'" class="nav-btn">Admin Dashboard</button>
+            <button id="logoutBtn" style="background:rgba(234,67,53,0.9);">Logout</button>
+        </nav>
+    </header>
+
+    <main>
+        <div class="stat-banner">
+            <h1>User Management</h1>
+            <span id="userCount" style="font-size:0.9rem; opacity:0.8;">-- users</span>
+        </div>
+
+        <div class="card">
+            <div class="toolbar">
+                <input id="searchInput" placeholder="Search by username or email…" />
+                <select id="roleFilter">
+                    <option value="">All roles</option>
+                    <option value="STUDENT">Students</option>
+                    <option value="ENFORCER">Enforcers</option>
+                    <option value="ADMIN">Admins</option>
+                </select>
+                <button onclick="loadUsers()" style="flex:0; white-space:nowrap;">Refresh</button>
+            </div>
+
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Tokens</th>
+                        <th>Rating</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersBody">
+                    <tr><td colspan="8" style="text-align:center; color:#9ca3af; padding:2rem;">Loading…</td></tr>
+                </tbody>
+            </table>
+            <div id="emptyMsg">No users match your filters.</div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { apiGet, apiPost, API_BASE } from './js/api.js';
+
+        const searchInput = document.getElementById('searchInput');
+        const roleFilter  = document.getElementById('roleFilter');
+        let debounceTimer = null;
+
+        async function loadUsers() {
+            const role   = roleFilter.value;
+            const search = searchInput.value.trim();
+            let   qs     = [];
+            if (role)   qs.push(`role=${encodeURIComponent(role)}`);
+            if (search) qs.push(`search=${encodeURIComponent(search)}`);
+
+            try {
+                const data  = await apiGet('/admin/users.php' + (qs.length ? '?' + qs.join('&') : ''));
+                const users = data.users;
+
+                document.getElementById('userCount').textContent = `${users.length} user${users.length !== 1 ? 's' : ''}`;
+
+                const tbody   = document.getElementById('usersBody');
+                const emptyMsg = document.getElementById('emptyMsg');
+
+                if (users.length === 0) {
+                    tbody.innerHTML = '';
+                    emptyMsg.style.display = 'block';
+                    return;
+                }
+                emptyMsg.style.display = 'none';
+
+                tbody.innerHTML = users.map(u => {
+                    const isBanned = u.is_banned && u.ban_expires_at && new Date(u.ban_expires_at) > new Date();
+                    const banLabel = isBanned
+                        ? `<span class="ban-badge">Banned until ${new Date(u.ban_expires_at).toLocaleString()}</span>`
+                        : `<span class="active-badge">Active</span>`;
+
+                    const actions = [];
+                    if (isBanned) {
+                        actions.push(`<button class="btn-sm btn-unban" onclick="unbanUser(${u.id})">Unban</button>`);
+                    } else {
+                        actions.push(`<button class="btn-sm btn-ban" onclick="banUser(${u.id})">Ban</button>`);
+                    }
+
+                    return `
+                        <tr>
+                            <td><strong>${u.username}</strong></td>
+                            <td style="color:#5f6368; font-size:0.875rem;">${u.email}</td>
+                            <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+                            <td>${u.tokens}</td>
+                            <td>${parseFloat(u.rating).toFixed(2)}</td>
+                            <td>${banLabel}</td>
+                            <td style="font-size:0.8rem; color:#9ca3af;">${new Date(u.created_at).toLocaleDateString()}</td>
+                            <td>${actions.join('')}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error(err);
+                alert('Access denied. Redirecting…');
+                window.location.href = 'index.html';
+            }
+        }
+
+        window.loadUsers = loadUsers;
+
+        window.banUser = async function(userId) {
+            const hours = prompt('Ban duration in hours (default 24, min 1):', '24');
+            if (hours === null) return;
+            const duration = Math.max(1, parseInt(hours) || 24);
+            try {
+                await apiPost('/admin/ban_user.php', { user_id: userId, duration_hours: duration });
+                await loadUsers();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        };
+
+        window.unbanUser = async function(userId) {
+            if (!confirm('Remove this ban?')) return;
+            try {
+                await apiPost('/admin/unban_user.php', { user_id: userId });
+                await loadUsers();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        };
+
+        // Live search with debounce
+        searchInput.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(loadUsers, 300);
+        });
+        roleFilter.addEventListener('change', loadUsers);
+
+        document.getElementById('logoutBtn').onclick = async () => {
+            await fetch(`${API_BASE}/auth/logout.php`, { credentials: 'include' });
+            window.location.href = 'login.html';
+        };
+
+        loadUsers();
+    </script>
+</body>
+</html>
