@@ -78,10 +78,12 @@ CREATE TABLE IF NOT EXISTS reports (
   ) NOT NULL,
   note VARCHAR(255) NULL,
   image_url VARCHAR(255) NULL,
+  enforcer_user_id INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (reporter_user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (spot_id) REFERENCES spots(id) ON DELETE CASCADE,
-  FOREIGN KEY (reported_user_id) REFERENCES users(id) ON DELETE SET NULL
+  FOREIGN KEY (reported_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (enforcer_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- TOKEN LEDGER
@@ -150,6 +152,7 @@ JOIN (
 WHERE l.code='LOT_C';
 
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS image_url VARCHAR(255) NULL AFTER note;
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS enforcer_user_id INT NULL AFTER image_url;
 
 -- DEFAULT ADMIN (password: password)
 INSERT INTO users (username, email, password_hash, role, tokens, vehicle_plate, vehicle_make, vehicle_type)

@@ -266,7 +266,8 @@
                     ${row('Report ID', '#' + r.id)}
                     ${row('Type', `<span class="tag tag-penalty">${r.type.replace(/_/g, ' ')}</span>`)}
                     ${row('Lot / Spot', `${r.lot_name} — Spot #${r.spot_number} (${r.spot_type})`)}
-                    ${row('Reporter', `${r.reporter_name} <em style="color:#888;">(${r.reporter_role})</em>`)}
+                    ${row('Filed by', `${r.reporter_name} <em style="color:#888;">(${r.reporter_role})</em>`)}
+                    ${r.enforcer_name ? row('Evidence by', `${r.enforcer_name} <em style="color:#888;">(Enforcer)</em>`) : ''}
                     ${row('Reported User', r.reported_name
                         ? `${r.reported_name} &nbsp;|&nbsp; ${r.reported_tokens} tokens &nbsp;|&nbsp; Rating ${r.reported_rating}${r.reported_is_banned ? ' &nbsp;<span style="color:#b91c1c;font-weight:bold;">BANNED</span>' : ''}`
                         : '<em style="color:#888;">None</em>')}

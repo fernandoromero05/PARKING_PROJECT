@@ -33,6 +33,8 @@ $stmt = $pdo->prepare("
         reported.tokens        AS reported_tokens,
         reported.rating        AS reported_rating,
         reported.is_banned     AS reported_is_banned,
+        enforcer.id            AS enforcer_id,
+        enforcer.username      AS enforcer_name,
         s.id                   AS spot_id,
         s.spot_number,
         s.spot_type,
@@ -41,6 +43,7 @@ $stmt = $pdo->prepare("
     FROM reports r
     JOIN users reporter ON r.reporter_user_id = reporter.id
     LEFT JOIN users reported ON r.reported_user_id = reported.id
+    LEFT JOIN users enforcer ON r.enforcer_user_id = enforcer.id
     JOIN spots s ON r.spot_id = s.id
     JOIN lots l ON s.lot_id = l.id
     WHERE r.id = ?

@@ -1,136 +1,360 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>CampusPark - Report</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CampusPark - File a Report</title>
   <link rel="stylesheet" href="./css/main.css" />
+  <style>
+    main { max-width: 560px; }
+
+    .report-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .report-header h2 { margin: 0; color: #2c3e50; }
+    .report-header p  { margin: 2px 0 0; font-size: 0.85rem; color: #5f6368; }
+
+    .spot-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #e8f0fe;
+      color: #1a73e8;
+      border: 1px solid #c5d8fc;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+
+    .existing-report-box {
+      background: #fef9ec;
+      border: 1px solid #f5c842;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .existing-report-box h4 {
+      margin: 0 0 0.4rem 0;
+      color: #92400e;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .existing-report-box p { margin: 0.2rem 0; font-size: 0.875rem; color: #555; }
+    .existing-report-box .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .image-drop {
+      border: 2px dashed #d1d5db;
+      border-radius: 10px;
+      padding: 1.25rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .image-drop:hover, .image-drop.dragover {
+      border-color: #1a73e8;
+      background: #f0f4ff;
+    }
+    .image-drop input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+      border: none;
+      padding: 0;
+    }
+    .image-drop .drop-label { pointer-events: none; color: #5f6368; font-size: 0.875rem; }
+    .image-drop .drop-label span { color: #1a73e8; font-weight: 600; }
+
+    #imagePreview {
+      margin-top: 0.75rem;
+      border-radius: 8px;
+      max-height: 180px;
+      width: 100%;
+      object-fit: cover;
+      display: none;
+      border: 1px solid #e5e7eb;
+    }
+    #clearImage {
+      display: none;
+      margin-top: 0.4rem;
+      background: none;
+      border: none;
+      color: #d93025;
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 0;
+      font-weight: 600;
+    }
+
+    .form-actions { display: flex; gap: 10px; margin-top: 1.5rem; }
+    .form-actions button { flex: 1; padding: 14px; font-size: 0.95rem; }
+
+    .result-box {
+      display: none;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .result-box.success { background: #e6f4ea; color: #1e8e3e; border: 1px solid #ceead6; }
+    .result-box.error   { background: #fce8e6; color: #d93025; border: 1px solid #fad2cf; }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1.5rem 0;
+      color: #9ca3af;
+      font-size: 0.8rem;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      border-top: 1px solid #e5e7eb;
+    }
+  </style>
 </head>
 <body>
 <header>
   <div style="display:flex; flex-direction:column;">
     <b>CampusPark</b>
-    <div id="topUser" class="small" style="color: rgba(255,255,255,0.8); font-weight:normal;"></div>
+    <div id="topUser" class="small" style="color:rgba(255,255,255,0.8); font-weight:normal;"></div>
   </div>
   <nav>
-    <button type="button" onclick="window.location.href='index.html'" class="nav-btn">Home</button>
-    <button id="logoutBtnHeader" type="button" style="background: rgba(234, 67, 53, 0.9);">Logout</button>
+    <button type="button" id="backBtn" class="nav-btn">Back to Map</button>
+    <button id="logoutBtnHeader" type="button" style="background:rgba(234,67,53,0.9);">Logout</button>
   </nav>
 </header>
 
 <main>
   <div class="card">
-    <h3>Report / Complaint</h3>
-    <div class="small">Choose a complaint. This affects token points if verified/thresholded.</div>
-
-    <div class="row" style="margin-top:10px;">
-      <select id="type">
-        <option value="POORLY_PARKED">Poorly parked (-5)</option>
-        <option value="DID_NOT_CLAIM">Did not claim (threshold ≥4 ⇒ -15)</option>
-        <option value="DISRESPECTFUL_DRIVER">Disrespectful driver</option>
-        <option value="EXCEEDS_TIME_LIMIT">Exceeds time limit</option>
-        <option value="BLOCKING_SPOT">Blocking another spot</option>
-        <option value="PARKED_OVER_LINE">Parked over line</option>
-        <option value="UNAUTHORIZED_PARKING">Unauthorized parking</option>
-        <option value="ABANDONED_VEHICLE">Abandoned vehicle</option>
-        <option value="OTHER">Other</option>
-      </select>
-
-      <input id="note" placeholder="Optional note" />
-
-      <!-- 🆕 SOLO ENFORCER -->
-      <div id="imageWrap" style="display:none;">
-        <input id="image" type="file" accept="image/*" />
+    <div class="report-header">
+      <div>
+        <h2>File a Report</h2>
+        <p>Report a parking violation at this spot.</p>
       </div>
-
-      <button id="sendBtn">Send</button>
-      <button id="backBtn" class="secondary">Back</button>
     </div>
 
-    <p class="small" id="msg"></p>
+    <div class="spot-badge">
+      📍 Spot <span id="spotLabel">--</span>
+    </div>
+
+    <!-- Shown to enforcers when an existing report with no image is found -->
+    <div id="existingSection" style="display:none;">
+      <div class="existing-report-box">
+        <h4>Existing report on this spot</h4>
+        <p><strong>Filed by:</strong> <span id="existReporter">--</span></p>
+        <p><strong>Type:</strong> <span id="existType">--</span></p>
+        <p id="existNoteWrap"><strong>Note:</strong> <span id="existNote">--</span></p>
+        <p><strong>Filed at:</strong> <span id="existTime">--</span></p>
+      </div>
+
+      <div class="form-group">
+        <label>Add photo evidence to this report <span style="font-weight:400; color:#5f6368;">(max 5 MB)</span></label>
+        <div class="image-drop" id="imageDrop">
+          <input type="file" id="image" accept="image/jpeg,image/png,image/webp,image/gif" />
+          <div class="drop-label">
+            <div style="font-size:1.5rem; margin-bottom:0.25rem;">📷</div>
+            <p style="margin:0;"><span>Browse</span> or drag &amp; drop an image here</p>
+            <p style="margin:4px 0 0; font-size:0.75rem;">JPEG · PNG · WebP · GIF</p>
+          </div>
+        </div>
+        <img id="imagePreview" alt="Preview" />
+        <button type="button" id="clearImage">Remove image</button>
+      </div>
+
+      <div class="form-actions">
+        <button id="addImageBtn" style="background:#e65c00;">Add Evidence</button>
+      </div>
+
+      <div class="divider">or file a new report instead</div>
+    </div>
+
+    <!-- Standard report form (always shown; for enforcers it's the secondary option) -->
+    <div id="newReportSection">
+      <div class="form-group">
+        <label for="type">Violation type</label>
+        <select id="type">
+          <option value="POORLY_PARKED">Poorly parked (-5 tokens)</option>
+          <option value="DID_NOT_CLAIM">Did not claim (≥4 reports → -15 tokens)</option>
+          <option value="DISRESPECTFUL_DRIVER">Disrespectful driver (-10 tokens)</option>
+          <option value="EXCEEDS_TIME_LIMIT">Exceeds time limit (-10 tokens)</option>
+          <option value="BLOCKING_SPOT">Blocking another spot (-10 tokens)</option>
+          <option value="PARKED_OVER_LINE">Parked over line (-10 tokens)</option>
+          <option value="UNAUTHORIZED_PARKING">Unauthorized parking (-10 tokens)</option>
+          <option value="ABANDONED_VEHICLE">Abandoned vehicle (-10 tokens)</option>
+          <option value="OTHER">Other (-10 tokens)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="note">Note <span style="font-weight:400; color:#5f6368;">(optional)</span></label>
+        <textarea id="note" rows="3" placeholder="Describe the issue in more detail..." style="resize:vertical;"></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button id="sendBtn" style="background:#d93025;">Send Report</button>
+        <button id="cancelBtn" class="secondary">Cancel</button>
+      </div>
+    </div>
+
+    <div id="resultBox" class="result-box"></div>
   </div>
 </main>
 
 <script type="module">
   import { me, logout } from "./js/auth.js";
-  import { fileReport } from "./js/report.js";
+  import { fileReport }  from "./js/report.js";
 
-  const url = new URL(location.href);
-  const spotId = Number(url.searchParams.get("spot_id") || "0");
-  const lotId = Number(url.searchParams.get("lot_id") || "0");
+  const API_BASE = "/campuspark/backend/api";
+  const url      = new URL(location.href);
+  const spotId   = Number(url.searchParams.get("spot_id") || "0");
+  const lotId    = Number(url.searchParams.get("lot_id")  || "0");
 
-  const topUser = document.getElementById("topUser");
-  const msg = document.getElementById("msg");
+  let userRole    = "STUDENT";
+  let existingId  = null; // report_id of the existing report (for add-image flow)
 
-  function setMsg(t){ msg.textContent = t; }
+  document.getElementById("spotLabel").textContent = spotId || "?";
+
+  function showResult(text, ok) {
+    const box = document.getElementById("resultBox");
+    box.textContent   = text;
+    box.className     = "result-box " + (ok ? "success" : "error");
+    box.style.display = "block";
+  }
+
+  // Image preview (used in the add-evidence section)
+  const imageInput   = document.getElementById("image");
+  const imagePreview = document.getElementById("imagePreview");
+  const clearBtn     = document.getElementById("clearImage");
+  const imageDrop    = document.getElementById("imageDrop");
+
+  imageInput.addEventListener("change", () => {
+    const file = imageInput.files[0];
+    if (!file) return;
+    imagePreview.src           = URL.createObjectURL(file);
+    imagePreview.style.display = "block";
+    clearBtn.style.display     = "block";
+  });
+
+  clearBtn.addEventListener("click", () => {
+    imageInput.value           = "";
+    imagePreview.style.display = "none";
+    clearBtn.style.display     = "none";
+    URL.revokeObjectURL(imagePreview.src);
+  });
+
+  imageDrop.addEventListener("dragover",  e => { e.preventDefault(); imageDrop.classList.add("dragover"); });
+  imageDrop.addEventListener("dragleave", () => imageDrop.classList.remove("dragover"));
+  imageDrop.addEventListener("drop",      e => { e.preventDefault(); imageDrop.classList.remove("dragover"); });
 
   async function boot() {
-    const u = await me();
-    topUser.textContent = `Logged in as ${u.user.username} (${u.user.tokens} tokens)`;
+    const u  = await me();
+    userRole = u.user.role;
+    document.getElementById("topUser").textContent =
+      `Logged in as ${u.user.username} (${u.user.tokens} tokens)`;
 
-    // 🆕 ENFORCER CHECK
-    if (u.user.role === "ENFORCER") {
-      document.getElementById("imageWrap").style.display = "block";
+    if (userRole === "ENFORCER" || userRole === "ADMIN") {
+      // Check for an existing imageless report on this spot
+      const res = await fetch(`${API_BASE}/reports/spot_report.php?spot_id=${spotId}`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.ok && data.report) {
+        existingId = data.report.id;
+        document.getElementById("existReporter").textContent =
+          `${data.report.reporter_name} (${data.report.reporter_role})`;
+        document.getElementById("existType").textContent =
+          data.report.type.replace(/_/g, " ");
+        if (data.report.note) {
+          document.getElementById("existNote").textContent = data.report.note;
+        } else {
+          document.getElementById("existNoteWrap").style.display = "none";
+        }
+        document.getElementById("existTime").textContent =
+          new Date(data.report.created_at).toLocaleString();
+        document.getElementById("existingSection").style.display = "block";
+      }
     }
   }
 
-  document.getElementById("sendBtn").onclick = async () => {
-    setMsg("");
+  // Add evidence to existing report
+  document.getElementById("addImageBtn").addEventListener("click", async () => {
+    document.getElementById("resultBox").style.display = "none";
+    const image = imageInput.files[0];
+    if (!image) { showResult("Please select an image to attach.", false); return; }
+
+    const btn = document.getElementById("addImageBtn");
+    btn.disabled = true; btn.textContent = "Uploading...";
+
     try {
-      const type = document.getElementById("type").value;
-      const note = document.getElementById("note").value;
-      const image = document.getElementById("image")?.files?.[0];
+      const form = new FormData();
+      form.append("report_id", existingId);
+      form.append("image", image);
 
-      let res;
+      const r    = await fetch(`${API_BASE}/reports/add_image.php`, {
+        method: "POST", credentials: "include", body: form,
+      });
+      const data = await r.json();
+      if (!data.ok) throw new Error(data.error || "Request failed");
 
-      // =========================
-      // 🧠 SAFE MODE (NO BREAK API)
-      // =========================
-      if (image) {
-        try {
-          const formData = new FormData();
-          formData.append("spot_id", spotId);
-          formData.append("type", type);
-          formData.append("note", note);
-          formData.append("image", image);
-
-          const r = await fetch("/campuspark/backend/api/reports/create.php", {
-            method: "POST",
-            body: formData,
-            credentials: "include"
-          });
-
-          const text = await r.text();
-
-          try {
-            res = JSON.parse(text);
-          } catch (e) {
-            console.error("Server returned non-JSON:", text);
-            throw new Error("Server error while uploading image");
-          }
-
-        } catch (err) {
-          console.warn("Image upload failed, fallback to normal report:", err);
-          res = await fileReport(spotId, type, note);
-        }
-      } else {
-        // ORIGINAL FLOW (UNCHANGED)
-        res = await fileReport(spotId, type, note);
-      }
-
-      setMsg(`Report sent. Target user: ${res.reported_user_id ?? "none"}`);
+      showResult("Evidence photo added to the existing report.", true);
+      clearBtn.click();
     } catch (e) {
-      setMsg(e.message);
+      showResult(e.message, false);
+    } finally {
+      btn.disabled = false; btn.textContent = "Add Evidence";
     }
-  };
+  });
 
-  document.getElementById("backBtn").onclick = () => {
+  // File a new report (all roles)
+  document.getElementById("sendBtn").addEventListener("click", async () => {
+    document.getElementById("resultBox").style.display = "none";
+    const type = document.getElementById("type").value;
+    const note = document.getElementById("note").value.trim();
+    const btn  = document.getElementById("sendBtn");
+    btn.disabled = true; btn.textContent = "Sending...";
+
+    try {
+      const res = await fileReport(spotId, type, note || null);
+      const target = res.reported_user_id ? `User #${res.reported_user_id}` : "no specific user";
+      showResult(`Report submitted. Penalty applied to: ${target}.`, true);
+      document.getElementById("note").value = "";
+    } catch (e) {
+      showResult(e.message, false);
+    } finally {
+      btn.disabled = false; btn.textContent = "Send Report";
+    }
+  });
+
+  document.getElementById("cancelBtn").addEventListener("click", () => {
     location.href = `lot.html?lot_id=${encodeURIComponent(lotId)}`;
-  };
-
-  document.getElementById("logoutBtnHeader").onclick = async () => {
+  });
+  document.getElementById("backBtn").addEventListener("click", () => {
+    location.href = `lot.html?lot_id=${encodeURIComponent(lotId)}`;
+  });
+  document.getElementById("logoutBtnHeader").addEventListener("click", async () => {
     await logout();
     window.location.href = "login.html";
-  };
+  });
 
   boot().catch(() => location.href = "index.html");
 </script>
