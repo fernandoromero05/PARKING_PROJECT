@@ -37,7 +37,7 @@ if ($actor['role'] === 'ENFORCER' && in_array($target['role'], ['ENFORCER', 'ADM
 $stmt = $pdo->prepare("
     UPDATE users
     SET is_banned = TRUE,
-        ban_expires_at = DATE_ADD(NOW(), INTERVAL ? HOUR)
+        ban_expires_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? HOUR)
     WHERE id = ?
 ");
 $stmt->execute([$durationHours, $targetId]);

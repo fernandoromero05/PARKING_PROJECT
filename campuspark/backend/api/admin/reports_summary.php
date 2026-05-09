@@ -88,7 +88,7 @@ try {
     ");
     $activeNow = (int)$stmt->fetchColumn();
 
-    $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_banned = TRUE AND ban_expires_at > NOW()");
+    $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE is_banned = TRUE AND ban_expires_at > UTC_TIMESTAMP()");
     $currentlyBanned = (int)$stmt->fetchColumn();
 
     json_ok([

@@ -17,8 +17,8 @@ function require_auth(): int {
     $user = $stmt->fetch();
 
     if ($user && $user['is_banned']) {
-      $now = new DateTime();
-      $expires = $user['ban_expires_at'] ? new DateTime($user['ban_expires_at']) : null;
+      $now = new DateTime('now', new DateTimeZone('UTC'));
+      $expires = $user['ban_expires_at'] ? new DateTime($user['ban_expires_at'], new DateTimeZone('UTC')) : null;
 
       if (!$expires || $expires > $now) {
         json_fail('Your account is temporarily banned due to poor ranking or low token balance.', 403);

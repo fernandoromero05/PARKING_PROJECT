@@ -140,7 +140,7 @@ try {
       $stmt = $pdo->prepare("
         UPDATE users
         SET is_banned = TRUE,
-            ban_expires_at = DATE_ADD(NOW(), INTERVAL 1 DAY),
+            ban_expires_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 1 DAY),
             rating = 1.0
         WHERE id=?
       ");
