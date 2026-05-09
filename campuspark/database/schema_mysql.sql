@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS reports (
     'OTHER'
   ) NOT NULL,
   note VARCHAR(255) NULL,
+  image_url VARCHAR(255) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (reporter_user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (spot_id) REFERENCES spots(id) ON DELETE CASCADE,
@@ -147,6 +148,8 @@ JOIN (
   UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12
 ) n
 WHERE l.code='LOT_C';
+
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS image_url VARCHAR(255) NULL AFTER note;
 
 -- DEFAULT ADMIN (password: password)
 INSERT INTO users (username, email, password_hash, role, tokens, vehicle_plate, vehicle_make, vehicle_type)
